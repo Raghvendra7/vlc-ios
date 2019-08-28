@@ -1,5 +1,5 @@
 /*****************************************************************************
- * VLCConstants.h
+ * VLCTVConstants.h
  * VLC for iOS
  *****************************************************************************
  * Copyright (c) 2013-2015 VideoLAN. All rights reserved.
@@ -52,6 +52,7 @@
 #define kVLCSettingContinueAudioInBackgroundKey @"BackgroundAudioPlayback"
 #define kVLCSettingSubtitlesFilePath @"sub-file"
 #define kVLCSettingEqualizerProfile @"EqualizerProfile"
+#define kVLCSettingEqualizerProfileDisabled @"EqualizerDisabled"
 #define kVLCSettingEqualizerProfileDefaultValue @(0)
 #define kVLCSettingPlaybackForwardSkipLength @"playback-forward-skip-length"
 #define kVLCSettingPlaybackForwardSkipLengthDefaultValue @(60)
@@ -69,3 +70,7 @@
 #define kVLCSettingWiFiSharingIPv6DefaultValue @(NO)
 
 #define kVLCfortvOSMovieDBKey @""
+
+#define kVLCStoredServerList @"kVLCStoredServerList"
+
+#define kVLCHTTPUploadDirectory @"Upload"

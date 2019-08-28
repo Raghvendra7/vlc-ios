@@ -12,7 +12,6 @@
 
 #import "VLCPlayerDisplayController.h"
 #import "VLCPlaybackController.h"
-#import "VLCMiniPlaybackView.h"
 #import "VLCPlaybackNavigationController.h"
 #import "VLCPlaybackController+MediaLibrary.h"
 #import "VLC-Swift.h"
@@ -40,7 +39,7 @@ static NSString *const VLCPlayerDisplayControllerDisplayModeKey = @"VLCPlayerDis
 
 @interface VLCPlayerDisplayController () <VLCMovieViewControllerDelegate>
 @property (nonatomic, strong) UIViewController<VLCPlaybackControllerDelegate> *movieViewController;
-@property (nonatomic, strong) UIView<VLCPlaybackControllerDelegate, VLCMiniPlaybackViewInterface> *miniPlaybackView;
+@property (nonatomic, strong) UIView<VLCPlaybackControllerDelegate, VLCMiniPlayer> *miniPlaybackView;
 @property (nonatomic, strong) NSLayoutConstraint *bottomConstraint;
 @property (nonatomic, strong) VLCService *services;
 @end
@@ -67,6 +66,7 @@ static NSString *const VLCPlayerDisplayControllerDisplayModeKey = @"VLCPlayerDis
 - (void)viewDidLoad
 {
     self.view = [[VLCUntouchableView alloc] initWithFrame:self.view.frame];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
 }
 
 #pragma mark - properties
@@ -258,9 +258,9 @@ static NSString *const VLCPlayerDisplayControllerDisplayModeKey = @"VLCPlayerDis
     }
 
     VLCPlaybackController *playbackController = [VLCPlaybackController sharedInstance];
-    UIView<VLCPlaybackControllerDelegate, VLCMiniPlaybackViewInterface> *miniPlaybackView = self.miniPlaybackView;
+    UIView<VLCPlaybackControllerDelegate, VLCMiniPlayer> *miniPlaybackView = self.miniPlaybackView;
     const NSTimeInterval animationDuration = 0.25;
-    const BOOL activePlaybackSession = playbackController.isPlaying || playbackController.willPlay;
+    const BOOL activePlaybackSession = playbackController.isPlaying || playbackController.willPlay || playbackController.playerIsSetup;
     const BOOL miniPlayerVisible = miniPlaybackView.visible;
 
     BOOL needsShow = activePlaybackSession && !miniPlayerVisible;
@@ -274,14 +274,15 @@ static NSString *const VLCPlayerDisplayControllerDisplayModeKey = @"VLCPlayerDis
     void (^completionBlock)(BOOL) = nil;
     if (needsShow) {
         if (!miniPlaybackView) {
-            self.miniPlaybackView = miniPlaybackView = [[VLCMiniPlaybackView alloc] initWithFrame:CGRectZero];
+            // Until VideoMiniPlayer is integrated, only AudioMiniPlayer is used.
+            self.miniPlaybackView = miniPlaybackView = [[VLCAudioMiniPlayer alloc] initWithService:_services.medialibraryService];
             miniPlaybackView.translatesAutoresizingMaskIntoConstraints = NO;
             miniPlaybackView.userInteractionEnabled = YES;
             [self.view addSubview:miniPlaybackView];
             _bottomConstraint = [miniPlaybackView.topAnchor constraintEqualToAnchor:self.view.bottomAnchor];
             [NSLayoutConstraint activateConstraints:
              @[_bottomConstraint,
-               [miniPlaybackView.heightAnchor constraintEqualToConstant:60.0],
+               [miniPlaybackView.heightAnchor constraintEqualToConstant:self.miniPlaybackView.contentHeight],
                [miniPlaybackView.leftAnchor constraintEqualToAnchor:self.view.leftAnchor],
                [miniPlaybackView.rightAnchor constraintEqualToAnchor:self.view.rightAnchor],
                ]];
@@ -291,7 +292,7 @@ static NSString *const VLCPlayerDisplayControllerDisplayModeKey = @"VLCPlayerDis
     } else if (needsHide) {
         miniPlaybackView.visible = NO;
         completionBlock = ^(BOOL finished) {
-            UIView<VLCPlaybackControllerDelegate, VLCMiniPlaybackViewInterface> *miniPlaybackView = self.miniPlaybackView;
+            UIView<VLCPlaybackControllerDelegate, VLCMiniPlayer> *miniPlaybackView = self.miniPlaybackView;
             if (miniPlaybackView.visible == NO) {
                 [miniPlaybackView removeFromSuperview];
                 self.miniPlaybackView = nil;
@@ -310,7 +311,13 @@ static NSString *const VLCPlayerDisplayControllerDisplayModeKey = @"VLCPlayerDis
                               delay:animationDuration
                             options:UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionAllowUserInteraction
                          animations:^{
-                             self.bottomConstraint.constant = needsHide ? 0 : -self->_miniPlaybackView.frame.size.height -self.view.layoutMargins.bottom;
+                             self.bottomConstraint.active = NO;
+                             if (needsShow) {
+                                 self.bottomConstraint = [miniPlaybackView.bottomAnchor constraintEqualToAnchor:self.realBottomAnchor];
+                             } else {
+                                 self.bottomConstraint = [miniPlaybackView.topAnchor constraintEqualToAnchor:self.bottomLayoutGuide.bottomAnchor];
+                             }
+                             self.bottomConstraint.active = YES;
                              [self.view layoutIfNeeded];
                          }
                          completion:completionBlock];

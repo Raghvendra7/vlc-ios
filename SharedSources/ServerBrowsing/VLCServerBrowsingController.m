@@ -35,9 +35,11 @@
         _viewController = viewController;
         _serverBrowser = browser;
 #if TARGET_OS_TV
-        MDFMovieDBSessionManager *movieDBSessionManager = [MDFMovieDBSessionManager sharedInstance];
-        movieDBSessionManager.apiKey = kVLCfortvOSMovieDBKey;
-        [movieDBSessionManager fetchProperties];
+        if (![kVLCfortvOSMovieDBKey isEqualToString:@""]) {
+            MDFMovieDBSessionManager *movieDBSessionManager = [MDFMovieDBSessionManager sharedInstance];
+            movieDBSessionManager.apiKey = kVLCfortvOSMovieDBKey;
+            [movieDBSessionManager fetchProperties];
+        }
 #endif
     }
     return self;
@@ -286,8 +288,14 @@
     NSString *FileSubtitlePath = nil;
     NSURL *subtitleURL = item.subtitleURL;
     NSString *extension = [subtitleURL pathExtension];
-    if ([extension isEqualToString:@""])
-        extension = item.subtitleType;
+    if ([extension isEqualToString:@""]) {
+        if ([item respondsToSelector:@selector(subtitleType)]) {
+            extension = item.subtitleType;
+        } else {
+            /* insert a generic subtitle file extension here because otherwise the file would be lost */
+            extension = @"sub";
+        }
+    }
 
     filename = [NSString stringWithFormat:@"%@.%@", [filename stringByDeletingPathExtension], extension];
 

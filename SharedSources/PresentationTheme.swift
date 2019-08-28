@@ -34,6 +34,7 @@ extension Notification.Name {
     let mediaCategorySeparatorColor: UIColor
     let tabBarColor: UIColor
     let orangeUI: UIColor
+    let toolBarStyle: UIBarStyle
 
     init(isDark: Bool,
                 name: String,
@@ -50,7 +51,8 @@ extension Notification.Name {
                 separatorColor: UIColor,
                 mediaCategorySeparatorColor: UIColor,
                 tabBarColor: UIColor,
-                orangeUI: UIColor) {
+                orangeUI: UIColor,
+                toolBarStyle: UIBarStyle) {
         self.isDark = isDark
         self.name = name
         self.statusBarStyle = statusBarStyle
@@ -67,6 +69,7 @@ extension Notification.Name {
         self.mediaCategorySeparatorColor = mediaCategorySeparatorColor
         self.tabBarColor = tabBarColor
         self.orangeUI = orangeUI
+        self.toolBarStyle = toolBarStyle
     }
 }
 
@@ -143,8 +146,8 @@ let brightPalette = ColorPalette(isDark: false,
                                  statusBarStyle: .default,
                                  navigationbarColor: UIColor(0xFFFFFF),
                                  navigationbarTextColor: UIColor(0x000000),
-                                 background: UIColor(0xF9F9F7),
-                                 cellBackgroundA: UIColor(0xF9F9F7),
+                                 background: UIColor(0xFFFFFF),
+                                 cellBackgroundA: UIColor(0xFFFFFF),
                                  cellBackgroundB: UIColor(0xE5E5E3),
                                  cellDetailTextColor: UIColor(0xA9A9A9),
                                  cellTextColor: UIColor(0x000000),
@@ -153,23 +156,25 @@ let brightPalette = ColorPalette(isDark: false,
                                  separatorColor: UIColor(0xF0F2F7),
                                  mediaCategorySeparatorColor: UIColor(0xECF2F6),
                                  tabBarColor: UIColor(0xFFFFFF),
-                                 orangeUI: UIColor(0xFF8800))
+                                 orangeUI: UIColor(0xFF8800),
+                                 toolBarStyle: UIBarStyle.default)
 
 let darkPalette = ColorPalette(isDark: true,
                                name: "Dark",
                                statusBarStyle: .lightContent,
-                               navigationbarColor: UIColor(0x292B36),
-                               navigationbarTextColor: UIColor(0xD3D3D3),
+                               navigationbarColor: UIColor(0x1B1E21),
+                               navigationbarTextColor: UIColor(0xFFFFFF),
                                background: UIColor(0x1B1E21),
-                               cellBackgroundA: UIColor(0x292B36),
+                               cellBackgroundA: UIColor(0x1B1E21),
                                cellBackgroundB: UIColor(0x000000),
                                cellDetailTextColor: UIColor(0xD3D3D3),
                                cellTextColor: UIColor(0xFFFFFF),
                                lightTextColor: UIColor(0xB8B8B8),
-                               sectionHeaderTextColor: UIColor(0xFFFFFF),
+                               sectionHeaderTextColor: UIColor(0x828282),
                                separatorColor: UIColor(0x25292C),
                                mediaCategorySeparatorColor: UIColor(0x25292C),
-                               tabBarColor: UIColor(0x292B36),
-                               orangeUI: UIColor(0xFF8800))
+                               tabBarColor: UIColor(0x25292C),
+                               orangeUI: UIColor(0xFF8800),
+                               toolBarStyle: UIBarStyle.black)
 
 let defaultFont = Typography(tableHeaderFont: UIFont.systemFont(ofSize: 24, weight: .semibold))

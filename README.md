@@ -61,7 +61,7 @@ Mostly for debugging or advanced users, you might want to have a custom local VL
 
     Inside your vlc-ios folder, after a `pod update`, do:
 
-    `cd Pods/MobileVLCKit-unstable/MobileVLCKit-binary`
+    `cd Pods/MobileVLCKit`
 
     `rm -rf MobileVLCKit.framework`
 
@@ -87,11 +87,21 @@ We try to follow a simple set of rules, outlined by this [guide](https://chris.b
 
 Additionally, commit messages should have all the information needed to understand the commit easily as the follwing:
 
-`Subject: Brief description(ticket related action)`
+```
+    Subject: Brief description
+
+    Description in detail if needed.
+
+    (ticket related action)
+```
 
 For example:
 
-`UPnP: Remove iOS 7 compatiblity code(closes #166)`
+```
+    UPnP: Remove iOS 7 compatiblity code
+
+    (closes #166)
+```
 
 ### Gitlab issues
 

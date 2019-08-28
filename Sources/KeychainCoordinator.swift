@@ -13,6 +13,14 @@
 import Foundation
 import LocalAuthentication
 
+// MARK: - PAPasscodeViewController UI
+
+extension PAPasscodeViewController {
+    open override var preferredStatusBarStyle: UIStatusBarStyle {
+        return PresentationTheme.current.colors.statusBarStyle
+    }
+}
+
 @objc(VLCKeychainCoordinator)
 class KeychainCoordinator: NSObject, PAPasscodeViewControllerDelegate {
 
@@ -57,7 +65,7 @@ class KeychainCoordinator: NSObject, PAPasscodeViewControllerDelegate {
 
     override init() {
         super.init()
-        NotificationCenter.default.addObserver(self, selector: #selector(appInForeground), name: .UIApplicationDidBecomeActive, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(appInForeground), name: UIApplication.didBecomeActiveNotification, object: nil)
     }
 
     @objc class func setPasscode(passcode: String?) throws {
@@ -144,11 +152,13 @@ class KeychainCoordinator: NSObject, PAPasscodeViewControllerDelegate {
     }
 
     private func passcodeFromKeychain() -> String {
-        if let item = try? XKKeychainGenericPasswordItem(forService: KeychainCoordinator.passcodeService, account: KeychainCoordinator.passcodeService) {
-            return item.secret.stringValue
-        }
-        assert(false, "Couldn't retrieve item from Keychain! If passcodeLockEnabled we should have an item and secret")
+      do {
+        let item = try XKKeychainGenericPasswordItem(forService: KeychainCoordinator.passcodeService, account: KeychainCoordinator.passcodeService)
+        return item.secret.stringValue
+      } catch let error {
+        assert(false, "Couldn't retrieve item from Keychain! If passcodeLockEnabled we should have an item and secret. Error was \(error)")
         return ""
+      }
     }
 
     // MARK: PAPassCodeDelegate

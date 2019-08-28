@@ -24,16 +24,18 @@ NSString * const kVLCSectionTableHeaderViewIdentifier = @"VLCSectionTableHeaderV
 {
     VLCActionSheet *actionSheet;
     VLCSettingsSpecifierManager *specifierManager;
+    MediaLibraryService *_medialibraryService;
 }
 @end
 
 @implementation VLCSettingsController
 
-- (instancetype)initWithStyle:(UITableViewStyle)style
+- (instancetype)initWithMediaLibraryService:(MediaLibraryService *)medialibraryService
 {
-    self = [super initWithStyle:style];
+    self = [super initWithStyle:UITableViewStyleGrouped];
     if (self) {
         [self setupUI];
+        _medialibraryService = medialibraryService;
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(settingDidChange:) name:kIASKAppSettingChanged object:nil];
     }
 
@@ -72,7 +74,6 @@ NSString * const kVLCSectionTableHeaderViewIdentifier = @"VLCSectionTableHeaderV
     
     actionSheet = [[VLCActionSheet alloc] init];
     actionSheet.modalPresentationStyle = UIModalPresentationCustom;
-    [actionSheet.collectionView registerClass:[VLCSettingsSheetCell class] forCellWithReuseIdentifier:VLCSettingsSheetCell.identifier];
     
     specifierManager = [[VLCSettingsSpecifierManager alloc] initWithSettingsReader:self.settingsReader settingsStore:self.settingsStore];
 }
@@ -130,29 +131,18 @@ NSString * const kVLCSectionTableHeaderViewIdentifier = @"VLCSectionTableHeaderV
     if ([notification.object isEqual:kVLCSettingPasscodeOnKey]) {
         BOOL passcodeOn = [[notification.userInfo objectForKey:kVLCSettingPasscodeOnKey] boolValue];
 
+        [self updateForPasscode:nil];
         if (passcodeOn) {
             PAPasscodeViewController *passcodeLockController = [[PAPasscodeViewController alloc] initForAction:PasscodeActionSet];
             passcodeLockController.delegate = self;
-            [self presentViewController:passcodeLockController animated:YES completion:nil];
-        } else {
-            [self updateForPasscode:nil];
+            UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:passcodeLockController];
+            [self.navigationController presentViewController:navigationController animated:YES completion:nil];
         }
     }
     if ([notification.object isEqual:kVLCSettingAppTheme]) {
         BOOL darkTheme = [[notification.userInfo objectForKey:kVLCSettingAppTheme] boolValue];
         PresentationTheme.current = darkTheme ? PresentationTheme.darkTheme : PresentationTheme.brightTheme;
         [self themeDidChange];
-    }
-}
-
-- (void)updateUIAndCoreSpotlightForPasscodeSetting:(BOOL)passcodeOn
-{
-    [self filterCellsWithAnimation:YES];
-
-    [[MLMediaLibrary sharedMediaLibrary] setSpotlightIndexingEnabled:!passcodeOn];
-    if (passcodeOn) {
-        // delete whole index for VLC
-        [[CSSearchableIndex defaultSearchableIndex] deleteAllSearchableItemsWithCompletionHandler:nil];
     }
 }
 
@@ -168,6 +158,7 @@ NSString * const kVLCSectionTableHeaderViewIdentifier = @"VLCSectionTableHeaderV
 - (void)PAPasscodeViewControllerDidCancel:(PAPasscodeViewController *)controller
 {
     [self updateForPasscode:nil];
+    [self.settingsStore setBool:false forKey:kVLCSettingPasscodeOnKey];
 }
 
 - (void)PAPasscodeViewControllerDidSetPasscode:(PAPasscodeViewController *)controller
@@ -191,13 +182,15 @@ NSString * const kVLCSectionTableHeaderViewIdentifier = @"VLCSectionTableHeaderV
     NSError *error = nil;
     [VLCKeychainCoordinator setPasscodeWithPasscode:passcode error:&error];
     if (error == nil) {
-        if (passcode == nil) {
-            //Set manually the value to NO to disable the UISwitch.
-            [[NSUserDefaults standardUserDefaults] setBool:NO forKey:kVLCSettingPasscodeOnKey];
+        if (passcode != nil) {
+            [[CSSearchableIndex defaultSearchableIndex] deleteAllSearchableItemsWithCompletionHandler:nil];
+        } else {
+            [_medialibraryService reindexAllMediaForSpotlight];
         }
-        [self updateUIAndCoreSpotlightForPasscodeSetting:passcode != nil];
+        //Set manually the value to enable/disable the UISwitch.
+        [self filterCellsWithAnimation:YES];
     }
-    if ([self.navigationController.presentedViewController isKindOfClass:[PAPasscodeViewController class]]) {
+    if ([self.navigationController.presentedViewController isKindOfClass:[UINavigationController class]] && [((UINavigationController *)self.navigationController.presentedViewController).viewControllers.firstObject isKindOfClass:[PAPasscodeViewController class]]) {
         [self.navigationController.presentedViewController dismissViewControllerAnimated:YES completion:nil];
     }
 }

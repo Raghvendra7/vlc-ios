@@ -27,10 +27,12 @@ struct IndicatorInfo {
 
     var title: String?
     var accessibilityLabel: String?
+    var accessibilityIdentifier: String?
 
-    init(title: String) {
+    init(title: String, accessibilityIdentifier: String? = nil) {
         self.title = title
         self.accessibilityLabel = title
+        self.accessibilityIdentifier = accessibilityIdentifier
     }
 }
 
@@ -45,7 +47,7 @@ class VLCPagingViewController<ButtonBarCellType: UICollectionViewCell>: PagerTab
     var changeCurrentIndexProgressive: ((_ oldCell: ButtonBarCellType?, _ newCell: ButtonBarCellType?, _ progressPercentage: CGFloat, _ changeCurrentIndex: Bool, _ animated: Bool) -> Void)?
 
     var buttonBarView: ButtonBarView!
-    let buttonbarViewHeight: CGFloat = 45.0
+    var buttonbarViewHeight: CGFloat = 45.0
     lazy private var cachedCellWidths: [CGFloat]? = { [unowned self] in
         return self.calculateWidths()
         }()
@@ -64,7 +66,7 @@ class VLCPagingViewController<ButtonBarCellType: UICollectionViewCell>: PagerTab
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
+        buttonbarViewHeight = viewControllers.count == 1 ? 0 : 45
         let flowLayout = UICollectionViewFlowLayout()
         flowLayout.scrollDirection = .horizontal
         buttonBarView = ButtonBarView(frame: .zero, collectionViewLayout: flowLayout)
@@ -188,7 +190,7 @@ class VLCPagingViewController<ButtonBarCellType: UICollectionViewCell>: PagerTab
     }
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        guard indexPath.item != currentIndex else { return }
+        guard indexPath.item != currentIndex && containerView.isScrollEnabled else { return }
 
         buttonBarView.moveTo(index: indexPath.item, animated: true, swipeDirection: .none, pagerScroll: .yes)
         shouldUpdateButtonBarView = false

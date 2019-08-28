@@ -20,18 +20,17 @@ class VLCAudioViewController: VLCMediaViewController {
         title = NSLocalizedString("AUDIO", comment: "")
         tabBarItem = UITabBarItem(
             title: NSLocalizedString("AUDIO", comment: ""),
-            image: UIImage(named: "MusicAlbums"),
-            selectedImage: UIImage(named: "MusicAlbums"))
+            image: UIImage(named: "Audio"),
+            selectedImage: UIImage(named: "Audio"))
         tabBarItem.accessibilityIdentifier = VLCAccessibilityIdentifier.audio
     }
 
     override func viewControllers(for pagerTabStripController: PagerTabStripViewController) -> [UIViewController] {
         return [
-            VLCTrackCategoryViewController(services),
-            VLCGenreCategoryViewController(services),
-            VLCArtistCategoryViewController(services),
-            VLCAlbumCategoryViewController(services),
-            VLCAudioPlaylistCategoryViewController(services)
+            ArtistCategoryViewController(services),
+            AlbumCategoryViewController(services),
+            TrackCategoryViewController(services),
+            GenreCategoryViewController(services)
         ]
     }
 }

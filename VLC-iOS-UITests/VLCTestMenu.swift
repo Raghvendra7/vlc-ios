@@ -21,7 +21,6 @@ class VLCTestMenu: XCTestCase {
         super.setUp()
 
         XCUIDevice.shared.orientation = .portrait
-        setupSnapshot(app)
         helper = TestHelper(app)
         app.launch()
     }
@@ -39,6 +38,11 @@ class VLCTestMenu: XCTestCase {
     func testNavigationToVideoTab() {
         helper.tapTabBarItem(VLCAccessibilityIdentifier.video)
         XCTAssertNotNil(app.navigationBars[VLCAccessibilityIdentifier.video])
+    }
+
+    func testNavigationToPlaylistTab() {
+        helper.tapTabBarItem(VLCAccessibilityIdentifier.playlist)
+        XCTAssertNotNil(app.navigationBars[VLCAccessibilityIdentifier.playlist])
     }
 
     func testNavigationToSettingsTab() {

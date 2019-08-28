@@ -20,7 +20,6 @@
 #import "UIDevice+VLC.h"
 #import <AVFoundation/AVFoundation.h>
 #import "VLCPlayerDisplayController.h"
-#import "VLCConstants.h"
 #import "VLCRemoteControlService.h"
 #import "VLCMetadata.h"
 #if TARGET_OS_IOS
@@ -35,20 +34,11 @@ NSString *const VLCPlaybackControllerPlaybackMetadataDidChange = @"VLCPlaybackCo
 NSString *const VLCPlaybackControllerPlaybackDidFail = @"VLCPlaybackControllerPlaybackDidFail";
 NSString *const VLCPlaybackControllerPlaybackPositionUpdated = @"VLCPlaybackControllerPlaybackPositionUpdated";
 
-typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
-    VLCAspectRatioDefault = 0,
-    VLCAspectRatioFillToScreen,
-    VLCAspectRatioFourToThree,
-    VLCAspectRatioSixteenToNine,
-    VLCAspectRatioSixteenToTen,
-};
-
 @interface VLCPlaybackController () <VLCMediaPlayerDelegate, VLCMediaDelegate, VLCRemoteControlServiceDelegate>
 {
     VLCRemoteControlService *_remoteControlService;
     VLCMediaPlayer *_mediaPlayer;
     VLCMediaListPlayer *_listPlayer;
-    BOOL _playerIsSetup;
     BOOL _shouldResumePlaying;
     BOOL _sessionWillRestart;
 
@@ -58,6 +48,8 @@ typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
 
     NSUInteger _currentAspectRatio;
     BOOL _isInFillToScreen;
+    NSUInteger _previousAspectRatio;
+    
 
     UIView *_videoOutputViewWrapper;
     UIView *_actualVideoOutputView;
@@ -230,10 +222,14 @@ typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
         return;
     }
 
-    // Set last selected equalizer profile
-    unsigned int profile = (unsigned int)[[[NSUserDefaults standardUserDefaults] objectForKey:kVLCSettingEqualizerProfile] integerValue];
-    [_mediaPlayer resetEqualizerFromProfile:profile];
-    [_mediaPlayer setPreAmplification:[_mediaPlayer preAmplification]];
+    // Set last selected equalizer profile if enabled
+    _mediaPlayer.equalizerEnabled = ![[NSUserDefaults standardUserDefaults] boolForKey:kVLCSettingEqualizerProfileDisabled];
+
+    if (_mediaPlayer.equalizerEnabled) {
+        unsigned int profile = (unsigned int)[[[NSUserDefaults standardUserDefaults] objectForKey:kVLCSettingEqualizerProfile] integerValue];
+        [_mediaPlayer resetEqualizerFromProfile:profile];
+        [_mediaPlayer setPreAmplification:[_mediaPlayer preAmplification]];
+    }
 
     _mediaWasJustStarted = YES;
 
@@ -256,7 +252,7 @@ typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
     if (_pathToExternalSubtitlesFile) {
         /* this could be a path or an absolute string - let's see */
         NSURL *subtitleURL = [NSURL URLWithString:_pathToExternalSubtitlesFile];
-        if (!subtitleURL) {
+        if (!subtitleURL || !subtitleURL.scheme) {
             subtitleURL = [NSURL fileURLWithPath:_pathToExternalSubtitlesFile];
         }
         if (subtitleURL) {
@@ -273,6 +269,7 @@ typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
 - (void)stopPlayback
 {
     BOOL ret = [_playbackSessionManagementLock tryLock];
+    _isInFillToScreen = NO; // reset _isInFillToScreen after playback is finished
     if (!ret) {
         APLog(@"%s: locking failed", __PRETTY_FUNCTION__);
         return;
@@ -290,7 +287,7 @@ typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
         if (_mediaPlayer.media) {
             [_mediaPlayer pause];
 #if TARGET_OS_IOS
-            [self _savePlaybackState];
+            [_delegate savePlaybackState: self];
 #endif
             [_mediaPlayer stop];
         }
@@ -311,9 +308,8 @@ typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
     [[self remoteControlService] unsubscribeFromRemoteCommands];
 
     [_playbackSessionManagementLock unlock];
-    if (!_sessionWillRestart) {
-        [[NSNotificationCenter defaultCenter] postNotificationName:VLCPlaybackControllerPlaybackDidStop object:self];
-    } else {
+    [[NSNotificationCenter defaultCenter] postNotificationName:VLCPlaybackControllerPlaybackDidStop object:self];
+    if (_sessionWillRestart) {
         _sessionWillRestart = NO;
         [self startPlayback];
     }
@@ -323,93 +319,12 @@ typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
 
 - (void)restoreAudioAndSubtitleTrack
 {
-    MLFile *item = [MLFile fileForURL:_mediaPlayer.media.url].firstObject;
+    VLCMLMedia *media = [_delegate mediaForPlayingMedia:_mediaPlayer.media];
 
-    if (item) {
-        _mediaPlayer.currentAudioTrackIndex = item.lastAudioTrack.intValue;
-        _mediaPlayer.currentVideoSubTitleIndex = item.lastSubtitleTrack.intValue;
+    if (media) {
+        _mediaPlayer.currentAudioTrackIndex = (int) media.audioTrackIndex;
+        _mediaPlayer.currentVideoSubTitleIndex = (int) media.subtitleTrackIndex;
     }
-}
-
-- (void)_savePlaybackState
-{
-    @try {
-        [[MLMediaLibrary sharedMediaLibrary] save];
-    }
-    @catch (NSException *exception) {
-        APLog(@"saving playback state failed");
-    }
-
-    NSArray *files = [MLFile fileForURL:_mediaPlayer.media.url];
-    MLFile *fileItem = files.firstObject;
-
-    if (!fileItem) {
-        APLog(@"couldn't find file, not saving playback progress");
-        return;
-    }
-
-    @try {
-        float position = _mediaPlayer.position;
-        fileItem.lastPosition = @(position);
-        fileItem.lastAudioTrack = @(_mediaPlayer.currentAudioTrackIndex);
-        fileItem.lastSubtitleTrack = @(_mediaPlayer.currentVideoSubTitleIndex);
-
-        if (position > .95)
-            return;
-
-        if (_mediaPlayer.hasVideoOut) {
-            NSArray *searchPaths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
-            NSString *newThumbnailPath = [searchPaths.firstObject stringByAppendingPathComponent:@"VideoSnapshots"];
-            NSError *error;
-
-            [[NSFileManager defaultManager] createDirectoryAtPath:newThumbnailPath withIntermediateDirectories:YES attributes:nil error:&error];
-            if (error == nil) {
-                newThumbnailPath = [newThumbnailPath stringByAppendingPathComponent:fileItem.objectID.URIRepresentation.lastPathComponent];
-                [_mediaPlayer saveVideoSnapshotAt:newThumbnailPath withWidth:0 andHeight:0];
-                _recheckForExistingThumbnail = YES;
-                [self performSelector:@selector(_updateStoredThumbnailForFile:) withObject:fileItem afterDelay:.25];
-            }
-        }
-    }
-    @catch (NSException *exception) {
-        APLog(@"failed to save current media state - file removed?");
-    }
-}
-#endif
-
-#if TARGET_OS_IOS
-- (void)_updateStoredThumbnailForFile:(MLFile *)fileItem
-{
-    NSFileManager *fileManager = [NSFileManager defaultManager];
-    NSArray *searchPaths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
-    NSString* newThumbnailPath = [searchPaths[0] stringByAppendingPathComponent:@"VideoSnapshots"];
-    newThumbnailPath = [newThumbnailPath stringByAppendingPathComponent:fileItem.objectID.URIRepresentation.lastPathComponent];
-
-    if (![fileManager fileExistsAtPath:newThumbnailPath]) {
-        if (_recheckForExistingThumbnail) {
-            [self performSelector:@selector(_updateStoredThumbnailForFile:) withObject:fileItem afterDelay:1.];
-            _recheckForExistingThumbnail = NO;
-        } else
-            return;
-    }
-
-    UIImage *newThumbnail = [UIImage imageWithContentsOfFile:newThumbnailPath];
-    if (!newThumbnail) {
-        if (_recheckForExistingThumbnail) {
-            [self performSelector:@selector(_updateStoredThumbnailForFile:) withObject:fileItem afterDelay:1.];
-            _recheckForExistingThumbnail = NO;
-        } else
-            return;
-    }
-
-    @try {
-        [fileItem setComputedThumbnailScaledForDevice:newThumbnail];
-    }
-    @catch (NSException *exception) {
-        APLog(@"updating thumbnail failed");
-    }
-
-    [fileManager removeItemAtPath:newThumbnailPath error:nil];
 }
 #endif
 
@@ -419,9 +334,7 @@ typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
         _mediaWasJustStarted = NO;
 #if TARGET_OS_IOS
         if (self.mediaList) {
-            NSArray *matches = [MLFile fileForURL:_mediaPlayer.media.url];
-            MLFile *item = matches.firstObject;
-            [self _recoverLastPlaybackStateOfItem:item];
+            [self _recoverLastPlaybackState];
         }
 #else
         NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
@@ -753,11 +666,6 @@ typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
                 return;
             }
         } break;
-        case VLCMediaPlayerStateESAdded: {
-#if TARGET_OS_IOS
-            [self restoreAudioAndSubtitleTrack];
-#endif
-        } break;
         default:
             break;
     }
@@ -788,7 +696,7 @@ typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
 {
     [_listPlayer pause];
 #if TARGET_OS_IOS
-    [self _savePlaybackState];
+    [_delegate savePlaybackState: self];
 #endif
     [[NSNotificationCenter defaultCenter] postNotificationName:VLCPlaybackControllerPlaybackDidPause object:self];
 }
@@ -882,21 +790,20 @@ typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
     _isInFillToScreen = YES;
 }
 
-- (void)switchIPhoneXFullScreen
+- (void)switchAspectRatio:(BOOL)toggleFullScreen
 {
-    if (_isInFillToScreen) {
-        const char *previousAspectRatio = _currentAspectRatio == VLCAspectRatioDefault ? NULL : [[self stringForAspectRatio:_currentAspectRatio] UTF8String];
-        _mediaPlayer.videoAspectRatio = (char *)previousAspectRatio;
-        _mediaPlayer.scaleFactor = 0;
-        _isInFillToScreen = NO;
+    if (toggleFullScreen) {
+        // Set previousAspectRatio to current, unless we're in full screen
+        _previousAspectRatio = _isInFillToScreen ? _previousAspectRatio : _currentAspectRatio;
+        _currentAspectRatio = _isInFillToScreen ? _previousAspectRatio : VLCAspectRatioFillToScreen;
     } else {
-        [self switchToFillToScreen];
+        // Increment unless hitting last aspectratio
+        _currentAspectRatio = _currentAspectRatio == VLCAspectRatioSixteenToTen ? VLCAspectRatioDefault : _currentAspectRatio + 1;
     }
-}
 
-- (void)switchAspectRatio
-{
-    _currentAspectRatio = _currentAspectRatio == VLCAspectRatioSixteenToTen ? VLCAspectRatioDefault : _currentAspectRatio + 1;
+    // If fullScreen is toggled directly and then the aspect ratio changes, fullScreen is not reset
+    if (_isInFillToScreen) _isInFillToScreen = NO;
+
     switch (_currentAspectRatio) {
         case VLCAspectRatioDefault:
             _mediaPlayer.scaleFactor = 0;
@@ -919,6 +826,10 @@ typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
 
     if ([self.delegate respondsToSelector:@selector(showStatusMessage:)]) {
         [self.delegate showStatusMessage:[NSString stringWithFormat:NSLocalizedString(@"AR_CHANGED", nil), [self stringForAspectRatio:_currentAspectRatio]]];
+    }
+
+    if ([self.delegate respondsToSelector:@selector(playbackControllerDidSwitchAspectRatio:)]) {
+        [_delegate playbackControllerDidSwitchAspectRatio:_currentAspectRatio];
     }
 }
 
@@ -1064,8 +975,12 @@ typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
 
 - (void)resetEqualizerFromProfile:(unsigned int)profile
 {
-    [[NSUserDefaults standardUserDefaults] setObject:@(profile) forKey:kVLCSettingEqualizerProfile];
-    [_mediaPlayer resetEqualizerFromProfile:profile];
+    _mediaPlayer.equalizerEnabled = profile != 0;
+    [[NSUserDefaults standardUserDefaults] setBool:profile == 0 forKey:kVLCSettingEqualizerProfileDisabled];
+    if (profile != 0) {
+        [[NSUserDefaults standardUserDefaults] setObject:@(profile - 1) forKey:kVLCSettingEqualizerProfile];
+        [_mediaPlayer resetEqualizerFromProfile:profile - 1];
+    }
 }
 
 - (void)setPreAmplification:(CGFloat)preAmplification
@@ -1124,7 +1039,7 @@ typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
         APLog(@"Pausing playback as previously connected external audio playback device was removed");
         [_mediaPlayer pause];
 #if TARGET_OS_IOS
-        [self _savePlaybackState];
+       [_delegate savePlaybackState: self];
 #endif
         [[NSNotificationCenter defaultCenter] postNotificationName:VLCPlaybackControllerPlaybackDidPause object:self];
     }
@@ -1158,55 +1073,54 @@ typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
     if (_needsMetadataUpdate == NO) {
         _needsMetadataUpdate = YES;
         dispatch_async(dispatch_get_main_queue(), ^{
+#if TARGET_OS_IOS
+            VLCMLMedia *media = self->_mediaPlayer.media ? [self->_delegate mediaForPlayingMedia:self->_mediaPlayer.media] : nil;
+            [self->_metadata updateMetadataFromMedia:media mediaPlayer:self->_mediaPlayer];
+#else
             [self->_metadata updateMetadataFromMediaPlayer:self->_mediaPlayer];
+#endif
             self->_needsMetadataUpdate = NO;
-            if ([self.delegate respondsToSelector:@selector(displayMetadataForPlaybackController:metadata:)])
-                [self.delegate displayMetadataForPlaybackController:self metadata:self->_metadata];
+            [self recoverDisplayedMetadata];
         });
     }
 }
 
 #if TARGET_OS_IOS
-- (void)_recoverLastPlaybackStateOfItem:(MLFile *)item
+- (void)_recoverLastPlaybackState
 {
-    if (item) {
-        CGFloat lastPosition = .0;
-        NSInteger duration = 0;
+    VLCMLMedia *media = [_delegate mediaForPlayingMedia:_mediaPlayer.media];
+    if (!media) return;
 
-        if (item.lastPosition) {
-            lastPosition = item.lastPosition.floatValue;
-        }
-        
-        duration = item.duration.intValue;
+    CGFloat lastPosition = media.progress;
+    // .95 prevents the controller from opening and closing immediatly when restoring state
+    if (lastPosition < .95 && _mediaPlayer.position < lastPosition) {
+        NSInteger continuePlayback;
+        if (media.type == VLCMLMediaTypeAudio)
+            continuePlayback = [[[NSUserDefaults standardUserDefaults] objectForKey:kVLCSettingContinueAudioPlayback] integerValue];
+        else
+            continuePlayback = [[[NSUserDefaults standardUserDefaults] objectForKey:kVLCSettingContinuePlayback] integerValue];
 
-        if (lastPosition < .95 && _mediaPlayer.position < lastPosition) {
-            NSInteger continuePlayback;
-            if ([item isAlbumTrack] || [item isSupportedAudioFile])
-                continuePlayback = [[[NSUserDefaults standardUserDefaults] objectForKey:kVLCSettingContinueAudioPlayback] integerValue];
-            else
-                continuePlayback = [[[NSUserDefaults standardUserDefaults] objectForKey:kVLCSettingContinuePlayback] integerValue];
+        if (continuePlayback == 1) {
+            [self setPlaybackPosition:lastPosition];
+        } else if (continuePlayback == 0) {
+            NSArray<VLCAlertButton *> *buttonsAction = @[[[VLCAlertButton alloc] initWithTitle: NSLocalizedString(@"BUTTON_CANCEL", nil)
+                                                                                         style: UIAlertActionStyleCancel
+                                                                                        action: nil],
+                                                         [[VLCAlertButton alloc] initWithTitle: NSLocalizedString(@"BUTTON_CONTINUE", nil)
+                                                                                        action: ^(UIAlertAction *action) {
+                                                                                            [self setPlaybackPosition:lastPosition];
+                                                                                        }]
+                                                         ];
+            UIViewController *presentingVC = [UIApplication sharedApplication].delegate.window.rootViewController;
+            presentingVC = presentingVC.presentedViewController ?: presentingVC;
+            [VLCAlertViewController alertViewManagerWithTitle:NSLocalizedString(@"CONTINUE_PLAYBACK", nil)
+                                                 errorMessage:[NSString stringWithFormat:NSLocalizedString(@"CONTINUE_PLAYBACK_LONG", nil), media.title]
+                                               viewController:presentingVC
+                                                buttonsAction:buttonsAction];
 
-            if (continuePlayback == 1) {
-                [self setPlaybackPosition:lastPosition];
-            } else if (continuePlayback == 0) {
-                NSArray<VLCAlertButton *> *buttonsAction = @[[[VLCAlertButton alloc] initWithTitle: NSLocalizedString(@"BUTTON_CANCEL", nil)
-                                                                                             style: UIAlertActionStyleCancel
-                                                                                            action: nil],
-                                                             [[VLCAlertButton alloc] initWithTitle: NSLocalizedString(@"BUTTON_CONTINUE", nil)
-                                                                                            action: ^(UIAlertAction *action) {
-                                                                                                [self setPlaybackPosition:lastPosition];
-                                                                                            }]
-                                                             ];
-                UIViewController *presentingVC = [UIApplication sharedApplication].delegate.window.rootViewController;
-                presentingVC = presentingVC.presentedViewController ?: presentingVC;
-                [VLCAlertViewController alertViewManagerWithTitle:NSLocalizedString(@"CONTINUE_PLAYBACK", nil)
-                                                     errorMessage:[NSString stringWithFormat:NSLocalizedString(@"CONTINUE_PLAYBACK_LONG", nil), item.title]
-                                                   viewController:presentingVC
-                                                    buttonsAction:buttonsAction];
-
-            }
         }
     }
+    [self restoreAudioAndSubtitleTrack];
 }
 #endif
 
@@ -1247,7 +1161,7 @@ typedef NS_ENUM(NSUInteger, VLCAspectRatio) {
 - (void)applicationWillResignActive:(NSNotification *)aNotification
 {
 #if TARGET_OS_IOS
-    [self _savePlaybackState];
+    [_delegate savePlaybackState: self];
 #endif
     if (![self isPlayingOnExternalScreen]
         && ![[[NSUserDefaults standardUserDefaults] objectForKey:kVLCSettingContinueAudioInBackgroundKey] boolValue]) {

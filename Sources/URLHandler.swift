@@ -13,8 +13,8 @@
 import Foundation
 
 @objc public protocol VLCURLHandler {
-    func canHandleOpen(url: URL, options: [UIApplicationOpenURLOptionsKey: AnyObject]) -> Bool
-    func performOpen(url: URL, options: [UIApplicationOpenURLOptionsKey: AnyObject]) -> Bool
+    func canHandleOpen(url: URL, options: [UIApplication.OpenURLOptionsKey: AnyObject]) -> Bool
+    func performOpen(url: URL, options: [UIApplication.OpenURLOptionsKey: AnyObject]) -> Bool
 }
 
 @objc class URLHandlers: NSObject {
@@ -33,11 +33,19 @@ import Foundation
 
 class DropBoxURLHandler: NSObject, VLCURLHandler {
 
-    @objc func canHandleOpen(url: URL, options: [UIApplicationOpenURLOptionsKey: AnyObject]) -> Bool {
+    @objc func canHandleOpen(url: URL, options: [UIApplication.OpenURLOptionsKey: AnyObject]) -> Bool {
+
+        let components = url.pathComponents
+        let methodName = components.count > 1 ? components[1] : nil
+
+        if methodName == "cancel" {
+            return false
+        }
+
         return url.scheme == "db-a60fc6qj9zdg7bw"
     }
 
-    @objc func performOpen(url: URL, options: [UIApplicationOpenURLOptionsKey: AnyObject]) -> Bool {
+    @objc func performOpen(url: URL, options: [UIApplication.OpenURLOptionsKey: AnyObject]) -> Bool {
         let authResult = DBClientsManager.handleRedirectURL(url)
 
         if  let authResult = authResult, authResult.isSuccess() == true {
@@ -50,14 +58,14 @@ class DropBoxURLHandler: NSObject, VLCURLHandler {
 
 class GoogleURLHandler: NSObject, VLCURLHandler {
 
-    @objc var currentGoogleAuthorizationFlow: OIDAuthorizationFlowSession?
+    @objc var currentGoogleAuthorizationFlow: OIDExternalUserAgentSession?
 
-    @objc func canHandleOpen(url: URL, options: [UIApplicationOpenURLOptionsKey: AnyObject]) -> Bool {
+    @objc func canHandleOpen(url: URL, options: [UIApplication.OpenURLOptionsKey: AnyObject]) -> Bool {
         return url.scheme == "com.googleusercontent.apps.CLIENT"
     }
 
-    @objc func performOpen(url: URL, options: [UIApplicationOpenURLOptionsKey: AnyObject]) -> Bool {
-        if currentGoogleAuthorizationFlow?.resumeAuthorizationFlow(with: url) == true {
+    @objc func performOpen(url: URL, options: [UIApplication.OpenURLOptionsKey: AnyObject]) -> Bool {
+        if currentGoogleAuthorizationFlow?.resumeExternalUserAgentFlow(with: url) == true {
             currentGoogleAuthorizationFlow = nil
             return true
         }
@@ -67,11 +75,11 @@ class GoogleURLHandler: NSObject, VLCURLHandler {
 
 class FileURLHandler: NSObject, VLCURLHandler {
 
-    @objc func canHandleOpen(url: URL, options: [UIApplicationOpenURLOptionsKey: AnyObject]) -> Bool {
+    @objc func canHandleOpen(url: URL, options: [UIApplication.OpenURLOptionsKey: AnyObject]) -> Bool {
         return url.isFileURL
     }
 
-    @objc func performOpen(url: URL, options: [UIApplicationOpenURLOptionsKey: AnyObject]) -> Bool {
+    @objc func performOpen(url: URL, options: [UIApplication.OpenURLOptionsKey: AnyObject]) -> Bool {
         let subclass = DocumentClass(fileURL: url)
         subclass.open { _ in
             self.play(url: url) { _ in
@@ -84,13 +92,14 @@ class FileURLHandler: NSObject, VLCURLHandler {
 
 class XCallbackURLHandler: NSObject, VLCURLHandler {
 
-    @objc func canHandleOpen(url: URL, options: [UIApplicationOpenURLOptionsKey: AnyObject]) -> Bool {
+    @objc func canHandleOpen(url: URL, options: [UIApplication.OpenURLOptionsKey: AnyObject]) -> Bool {
         return url.scheme == "vlc-x-callback" || url.scheme == "x-callback-url"
     }
 
-    @objc func performOpen(url: URL, options: [UIApplicationOpenURLOptionsKey: AnyObject]) -> Bool {
+    @objc func performOpen(url: URL, options: [UIApplication.OpenURLOptionsKey: AnyObject]) -> Bool {
         let action = url.path.replacingOccurrences(of: "/", with: "")
         var movieURL: URL?
+        var subURL: URL?
         var successCallback: URL?
         var errorCallback: URL?
         var fileName: String?
@@ -107,6 +116,8 @@ class XCallbackURLHandler: NSObject, VLCURLHandler {
             if let key = components.first, let value = components[1].removingPercentEncoding {
                 if key == "url"{
                     movieURL = URL(string: value)
+                } else if key == "sub" {
+                    subURL = URL(string: value)
                 } else if key == "filename" {
                     fileName = value
                 } else if key == "x-success" {
@@ -119,13 +130,13 @@ class XCallbackURLHandler: NSObject, VLCURLHandler {
             }
         }
         if action == "stream", let movieURL = movieURL {
-            play(url: movieURL) { success in
+            play(url: movieURL, sub: subURL) { success in
                 guard let callback = success ? successCallback : errorCallback else {
                     assertionFailure("no CallbackURL")
                     return
                 }
                 if #available(iOS 10, *) {
-                    UIApplication.shared.open(callback, options: [:], completionHandler: nil)
+                    UIApplication.shared.open(callback, options: convertToUIApplicationOpenExternalURLOptionsKeyDictionary([:]), completionHandler: nil)
                 } else {
                     UIApplication.shared.openURL(callback)
                 }
@@ -141,7 +152,7 @@ class XCallbackURLHandler: NSObject, VLCURLHandler {
 
 public class VLCCallbackURLHandler: NSObject, VLCURLHandler {
 
-    @objc public func canHandleOpen(url: URL, options: [UIApplicationOpenURLOptionsKey: AnyObject]) -> Bool {
+    @objc public func canHandleOpen(url: URL, options: [UIApplication.OpenURLOptionsKey: AnyObject]) -> Bool {
         return url.scheme == "vlc"
     }
 
@@ -156,7 +167,7 @@ public class VLCCallbackURLHandler: NSObject, VLCURLHandler {
         return URL(string: parsedString)!
     }
 
-    public func performOpen(url: URL, options: [UIApplicationOpenURLOptionsKey: AnyObject]) -> Bool {
+    public func performOpen(url: URL, options: [UIApplication.OpenURLOptionsKey: AnyObject]) -> Bool {
 
         let transformedURL = transformVLCURL(url)
         let scheme = transformedURL.scheme
@@ -179,11 +190,15 @@ public class VLCCallbackURLHandler: NSObject, VLCURLHandler {
 }
 
 class ElseCallbackURLHandler: NSObject, VLCURLHandler {
-    @objc func canHandleOpen(url: URL, options: [UIApplicationOpenURLOptionsKey: AnyObject]) -> Bool {
-        return true
+    @objc func canHandleOpen(url: URL, options: [UIApplication.OpenURLOptionsKey: AnyObject]) -> Bool {
+        guard let scheme = url.scheme else {
+            return false
+        }
+        return scheme.range(of: kSupportedProtocolSchemes,
+                            options: [.regularExpression, .caseInsensitive], range: nil, locale: nil) != nil
     }
 
-    func performOpen(url: URL, options: [UIApplicationOpenURLOptionsKey: AnyObject]) -> Bool {
+    func performOpen(url: URL, options: [UIApplication.OpenURLOptionsKey: AnyObject]) -> Bool {
         self.play(url: url, completion: nil)
         return true
     }
@@ -191,15 +206,20 @@ class ElseCallbackURLHandler: NSObject, VLCURLHandler {
 
 extension VLCURLHandler {
     // TODO: This code should probably not live here
-    func play(url: URL, completion: ((Bool) -> Void)?) {
+    func play(url: URL, sub: URL? = nil, completion: ((Bool) -> Void)?) {
         let vpc = VLCPlaybackController.sharedInstance()
         vpc.fullscreenSessionRequested = true
         if let mediaList = VLCMediaList(array: [VLCMedia(url: url)]) {
-            vpc.playMediaList(mediaList, firstIndex: 0, subtitlesFilePath: nil, completion: completion)
+            vpc.playMediaList(mediaList, firstIndex: 0, subtitlesFilePath: sub?.absoluteString, completion: completion)
         }
     }
 
     func downloadMovie(from url: URL, fileNameOfMedia fileName: String?) {
         VLCDownloadViewController.sharedInstance().addURL(toDownloadList: url, fileNameOfMedia: fileName)
     }
+}
+
+// Helper function inserted by Swift 4.2 migrator.
+fileprivate func convertToUIApplicationOpenExternalURLOptionsKeyDictionary(_ input: [String: Any]) -> [UIApplication.OpenExternalURLOptionsKey: Any] {
+	return Dictionary(uniqueKeysWithValues: input.map { key, value in (UIApplication.OpenExternalURLOptionsKey(rawValue: key), value)})
 }

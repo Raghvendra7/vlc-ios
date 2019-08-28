@@ -26,7 +26,7 @@
 {
     VLCGoogleDriveController *_googleDriveController;
 
-    GTLDriveFile *_selectedFile;
+    GTLRDrive_File *_selectedFile;
 }
 
 @end
@@ -52,6 +52,11 @@
 - (void)viewWillAppear:(BOOL)animated
 {
     [super viewWillAppear:animated];
+
+    if (@available(iOS 11.0, *)) {
+        self.navigationController.navigationBar.prefersLargeTitles = NO;
+    }
+
     [self updateViewAfterSessionChange];
 }
 
@@ -161,7 +166,7 @@
         OIDAuthorizationRequest *request = [[OIDAuthorizationRequest alloc] initWithConfiguration:[GTMAppAuthFetcherAuthorization configurationForGoogle]
                                                                                          clientId:kVLCGoogleDriveClientID
                                                                                      clientSecret:kVLCGoogleDriveClientSecret
-                                                                                           scopes:@[OIDScopeOpenID, kGTLAuthScopeDrive]
+                                                                                           scopes:@[OIDScopeOpenID, kGTLRAuthScopeDrive]
                                                                                       redirectURL:[NSURL URLWithString:kVLCGoogleRedirectURI]
                                                                                      responseType:OIDResponseTypeCode
                                                                              additionalParameters:nil];

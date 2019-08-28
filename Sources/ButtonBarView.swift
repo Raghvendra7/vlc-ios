@@ -17,7 +17,7 @@ class ButtonBarView: UICollectionView {
     var selectedBar: UIView!
     var separatorView: UIView!
 
-    let selectedBarHeight: CGFloat = 4
+    let selectedBarHeight: CGFloat = 2
     let separatorHeight: CGFloat = 1.5
 
     var selectedIndex = 0
@@ -37,7 +37,7 @@ class ButtonBarView: UICollectionView {
     func setup() {
         scrollsToTop = false
         showsHorizontalScrollIndicator = false
-        register(UINib(nibName: "VLCLabelCell", bundle: .main), forCellWithReuseIdentifier:VLCLabelCell.cellIdentifier)
+        register(UINib(nibName: VLCLabelCell.cellIdentifier, bundle: .main), forCellWithReuseIdentifier:VLCLabelCell.cellIdentifier)
 
         separatorView = UIView(frame: CGRect(x: 0, y: self.frame.size.height - separatorHeight, width: self.frame.size.width, height: separatorHeight))
         addSubview(separatorView)

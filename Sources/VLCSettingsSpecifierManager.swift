@@ -31,7 +31,7 @@ class VLCSettingsSpecifierManager: NSObject {
         if let selectedItem = settingsStore.object(forKey: specifier?.key()) {
             index = items.index(of: selectedItem)
         } else if let specifier = specifier {
-            index = items.index(of: specifier.defaultValue())
+            index = items.index(of: specifier.defaultValue() as Any)
         } else {
             fatalError("VLCSettingsSpecifierManager: No specifier provided")
         }
@@ -47,7 +47,7 @@ class VLCSettingsSpecifierManager: NSObject {
 
 // MARK: VLCActionSheetDelegate
 
-extension VLCSettingsSpecifierManager: VLCActionSheetDelegate {
+extension VLCSettingsSpecifierManager: ActionSheetDelegate {
     
     func headerViewTitle() -> String? {
         return specifier?.title()
@@ -65,14 +65,14 @@ extension VLCSettingsSpecifierManager: VLCActionSheetDelegate {
 
 // MARK: VLCActionSheetDataSource
 
-extension VLCSettingsSpecifierManager: VLCActionSheetDataSource {
+extension VLCSettingsSpecifierManager: ActionSheetDataSource {
     
     func numberOfRows() -> Int {
         return items.count
     }
     
     func actionSheet(collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: VLCSettingsSheetCell.identifier, for: indexPath) as? VLCSettingsSheetCell else {
+        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ActionSheetCell.identifier, for: indexPath) as? ActionSheetCell else {
             return UICollectionViewCell()
         }
         

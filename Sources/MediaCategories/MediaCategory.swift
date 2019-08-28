@@ -10,81 +10,81 @@
  * Refer to the COPYING file of the official project for license.
  *****************************************************************************/
 
-class VLCMovieCategoryViewController: VLCMediaCategoryViewController {
+class MovieCategoryViewController: MediaCategoryViewController {
     init(_ services: Services) {
-        let model = VideoModel(medialibrary: services.medialibraryManager)
-        super.init(services: services, category: model)
-        category.updateView = { [weak self] in
+        let model = VideoModel(medialibrary: services.medialibraryService)
+        super.init(services: services, model: model)
+        model.updateView = { [weak self] in
             self?.reloadData()
         }
     }
 }
 
-class VLCShowEpisodeCategoryViewController: VLCMediaCategoryViewController {
+class ShowEpisodeCategoryViewController: MediaCategoryViewController {
     init(_ services: Services) {
-        let model = ShowEpisodeModel(medialibrary: services.medialibraryManager)
-        super.init(services: services, category: model)
-        category.updateView = { [weak self] in
+        let model = ShowEpisodeModel(medialibrary: services.medialibraryService)
+        super.init(services: services, model: model)
+        model.updateView = { [weak self] in
             self?.reloadData()
         }
     }
 }
 
-class VLCVideoPlaylistCategoryViewController: VLCMediaCategoryViewController {
+class PlaylistCategoryViewController: MediaCategoryViewController {
     init(_ services: Services) {
-        let model = PlaylistModel(medialibrary: services.medialibraryManager)
-        super.init(services: services, category: model)
-        category.updateView = { [weak self] in
+        let model = PlaylistModel(medialibrary: services.medialibraryService)
+        super.init(services: services, model: model)
+        model.updateView = { [weak self] in
             self?.reloadData()
         }
     }
 }
 
-class VLCTrackCategoryViewController: VLCMediaCategoryViewController {
+class TrackCategoryViewController: MediaCategoryViewController {
     init(_ services: Services) {
-        let model = AudioModel(medialibrary: services.medialibraryManager)
-        super.init(services: services, category: model)
-        category.updateView = { [weak self] in
+        let model = TrackModel(medialibrary: services.medialibraryService)
+        super.init(services: services, model: model)
+        model.updateView = { [weak self] in
             self?.reloadData()
         }
     }
 }
 
-class VLCGenreCategoryViewController: VLCMediaCategoryViewController {
+class GenreCategoryViewController: MediaCategoryViewController {
     init(_ services: Services) {
-        let model = GenreModel(medialibrary: services.medialibraryManager)
-        super.init(services: services, category: model)
-        category.updateView = { [weak self] in
+        let model = GenreModel(medialibrary: services.medialibraryService)
+        super.init(services: services, model: model)
+        model.updateView = { [weak self] in
             self?.reloadData()
         }
     }
 }
 
-class VLCArtistCategoryViewController: VLCMediaCategoryViewController {
+class ArtistCategoryViewController: MediaCategoryViewController {
     init(_ services: Services) {
-        let model = ArtistModel(medialibrary: services.medialibraryManager)
-        super.init(services: services, category: model)
-        category.updateView = { [weak self] in
+        let model = ArtistModel(medialibrary: services.medialibraryService)
+        super.init(services: services, model: model)
+        model.updateView = { [weak self] in
             self?.reloadData()
         }
     }
 }
 
-class VLCAlbumCategoryViewController: VLCMediaCategoryViewController {
+class AlbumCategoryViewController: MediaCategoryViewController {
     init(_ services: Services) {
-        let model = AlbumModel(medialibrary: services.medialibraryManager)
-        super.init(services: services, category: model)
-        category.updateView = { [weak self] in
+        let model = AlbumModel(medialibrary: services.medialibraryService)
+        super.init(services: services, model: model)
+        model.updateView = { [weak self] in
             self?.reloadData()
         }
     }
 }
 
-class VLCAudioPlaylistCategoryViewController: VLCMediaCategoryViewController {
-    init(_ services: Services) {
-        let model = PlaylistModel(medialibrary: services.medialibraryManager)
-        super.init(services: services, category: model)
-        category.updateView = { [weak self] in
+class CollectionCategoryViewController: MediaCategoryViewController {
+    init(_ services: Services, mediaCollection: MediaCollectionModel) {
+        let model = CollectionModel(mediaService: services.medialibraryService, mediaCollection: mediaCollection)
+        super.init(services: services, model: model)
+        model.updateView = { [weak self] in
             self?.reloadData()
         }
     }
