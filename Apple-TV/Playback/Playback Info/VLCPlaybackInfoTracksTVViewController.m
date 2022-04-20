@@ -1,7 +1,7 @@
 /*****************************************************************************
  * VLC for iOS
  *****************************************************************************
- * Copyright (c) 2015 VideoLAN. All rights reserved.
+ * Copyright (c) 2015, 2020 VideoLAN. All rights reserved.
  * $Id$
  *
  * Authors: Tobias Conradi <videolan # tobias-conradi.de>
@@ -16,7 +16,7 @@
 #import "VLCPlaybackInfoSubtitlesFetcherViewController.h"
 
 #define CONTENT_INSET 20.
-
+#define MINIMAL_CONTENT_SIZE 420.
 
 @interface VLCPlaybackInfoTracksDataSourceAudio : VLCPlaybackInfoCollectionViewDataSource <UICollectionViewDataSource, UICollectionViewDelegate>
 @end
@@ -57,7 +57,7 @@
     self.subtitleDataSource.title = [NSLocalizedString(@"SUBTITLES", nil) uppercaseStringWithLocale:currentLocale];
     self.subtitleDataSource.cellIdentifier = [VLCPlaybackInfoTVCollectionViewCell identifier];
     self.subtitleDataSource.parentViewController = self;
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(mediaPlayerChanged) name:VLCPlaybackControllerPlaybackMetadataDidChange object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(mediaPlayerChanged) name:VLCPlaybackServicePlaybackMetadataDidChange object:nil];
 }
 
 - (void)viewWillAppear:(BOOL)animated
@@ -68,8 +68,11 @@
 
 - (CGSize)preferredContentSize
 {
-    CGFloat prefferedHeight = MAX(self.audioTrackCollectionView.contentSize.height, self.subtitleTrackCollectionView.contentSize.height) + CONTENT_INSET;
-    return CGSizeMake(CGRectGetWidth(self.view.bounds), prefferedHeight);
+    CGFloat preferredHeight = MAX(self.audioTrackCollectionView.contentSize.height, self.subtitleTrackCollectionView.contentSize.height) + CONTENT_INSET;
+    if (preferredHeight < MINIMAL_CONTENT_SIZE) {
+        preferredHeight = MINIMAL_CONTENT_SIZE;
+    }
+    return CGSizeMake(CGRectGetWidth(self.view.bounds), preferredHeight);
 }
 
 - (void)mediaPlayerChanged
@@ -92,13 +95,13 @@
 @implementation VLCPlaybackInfoTracksDataSourceAudio
 - (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section
 {
-    return [[VLCPlaybackController sharedInstance] numberOfAudioTracks] + 1;
+    return [[VLCPlaybackService sharedInstance] numberOfAudioTracks] + 1;
 }
 
 - (void)collectionView:(UICollectionView *)collectionView willDisplayCell:(UICollectionViewCell *)cell forItemAtIndexPath:(NSIndexPath *)indexPath
 {
     VLCPlaybackInfoTVCollectionViewCell *trackCell = (VLCPlaybackInfoTVCollectionViewCell*)cell;
-    VLCPlaybackController *vpc = [VLCPlaybackController sharedInstance];
+    VLCPlaybackService *vpc = [VLCPlaybackService sharedInstance];
     NSInteger row = indexPath.row;
     NSString *trackName;
 
@@ -128,7 +131,7 @@
 
 - (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath
 {
-    VLCPlaybackController *vpc = [VLCPlaybackController sharedInstance];
+    VLCPlaybackService *vpc = [VLCPlaybackService sharedInstance];
     NSInteger row = indexPath.row;
     if (row >= [vpc numberOfAudioTracks]) {
         NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
@@ -147,13 +150,13 @@
 @implementation VLCPlaybackInfoTracksDataSourceSubtitle
 - (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section
 {
-    return [[VLCPlaybackController sharedInstance] numberOfVideoSubtitlesIndexes] + 1;
+    return [[VLCPlaybackService sharedInstance] numberOfVideoSubtitlesIndexes];
 }
 
 - (void)collectionView:(UICollectionView *)collectionView willDisplayCell:(UICollectionViewCell *)cell forItemAtIndexPath:(NSIndexPath *)indexPath
 {
     VLCPlaybackInfoTVCollectionViewCell *trackCell = (VLCPlaybackInfoTVCollectionViewCell*)cell;
-    VLCPlaybackController *vpc = [VLCPlaybackController sharedInstance];
+    VLCPlaybackService *vpc = [VLCPlaybackService sharedInstance];
     NSInteger row = indexPath.row;
     NSString *trackName;
     if (row >= [vpc numberOfVideoSubtitlesIndexes]) {
@@ -171,11 +174,11 @@
     trackCell.titleLabel.text = trackName;
 }
 
--(void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath
+- (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath
 {
-    VLCPlaybackController *vpc = [VLCPlaybackController sharedInstance];
+    VLCPlaybackService *vpc = [VLCPlaybackService sharedInstance];
     NSInteger row = indexPath.row;
-    if (row >= [vpc numberOfVideoSubtitlesIndexes]) {
+    if (row == [vpc numberOfVideoSubtitlesIndexes] - 1) {
         if (self.parentViewController) {
             if ([self.parentViewController respondsToSelector:@selector(downloadMoreSPU)]) {
                 [self.parentViewController performSelector:@selector(downloadMoreSPU)];

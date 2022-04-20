@@ -1,5 +1,228 @@
 # Changelog
 
+## iOS [3.3.0]
+
+· Add new video player interface
+· Add support to browse NFS and SFTP shares
+· Replace previous UPnP integration with VLC's native support based on libupnp
+  · this improves compatibility with off-standard UPnP servers
+· Replace previous FTP integration with VLC's native support
+  · this improves compatibility with servers using non-western text encodings
+    and allows connections to servers with off-standard port configurations
+· Add downloads from SMB servers
+· Add support for http(s) downloads from servers requiring authentication
+· Add grid layout for Audio library
+· Major speed and performance improvements avoiding heating issues
+· Fix storing user credentials for network shares
+· Retain downloaded subtitles for locally stored media
+· Automatic video deinterlacing (by default)
+· Retain last opened media category
+· Add support for Files.app as a source to open media without importing to VLC
+  · This allows playback from external devices, too!
+· Add a queue view controller to switch between scheduled media items and for TV channel listings
+· Add a full black theme for OLED devices
+· Add rtsp-tcp option
+· Add support for spatial audio with AirPods Pro and Max
+· library: allow sorting tracks and albums by insertion date
+· playback: allow up to 8x playback speed
+· video: modify white point adaptation mode on modern iOS devices
+· Add support for SAT>IP including custom channel lists
+· Clicking previous during playback now resets the playback position instead of directly going to the previous item in list
+· Add Select-All feature to media library screens
+· Fix listing large number of media in Google Drive and Dropbox folders
+
+## tvOS [3.3.0]
+
+· Major speed and performance improvements avoiding heating issues
+· Add support to browse NFS and SFTP shares
+· Replace previous UPnP integration with VLC's native support based on libupnp
+  · this improves compatibility with off-standard UPnP servers
+· Replace previous FTP integration with VLC's native support
+  · this improves compatibility with servers using non-western text encodings
+    and allows connections to servers with off-standard port configurations
+· Fix storing user credentials for network shares
+· Retain downloaded subtitles for locally stored media
+· Automatic video deinterlacing (by default)
+· Add rtsp-tcp option
+· Add support for spatial audio with AirPods Pro and Max
+· Add support for SAT>IP including custom channel lists
+· Clicking previous during playback now resets the playback position instead of directly going to the previous item in list
+
+## iOS [3.2.13]
+
+· Add support for SMBv3
+· Fix authentication regression with SMBv2 servers
+· Fix DNS lookup regression with SMBv2 servers on IPv6-capable networks
+· Fix login to Box.com
+
+## tvOS [3.0.12]
+
+· Add support for SMBv3
+· Fix authentication regression with SMBv2 servers
+· Fix DNS lookup regression with SMBv2 servers on IPv6-capable networks
+
+## iOS [3.2.12]
+
+· Fix playback of 10bit and 12bit content encoded in HEVC or AVC on iOS 14 and later
+
+## tvOS [3.0.11]
+
+· Fix playback of 10bit and 12bit content encoded in HEVC or AVC on tvOS 14 and later
+
+## iOS [3.2.11]
+
+· Fix adding new item to playlists
+· Update Dutch translation
+
+## tvOS [3.0.10]
+
+· Fix subtitle display for tracks embedded in MKV files
+
+## iOS [3.2.10]
+
+· Fix subtitle display for tracks embedded in MKV files
+· Minor UI fix
+
+## tvOS [3.0.9]
+
+· Fix repeat button appearance on tvOS 13 and later
+· Fix Remote Playback on IPv6-only networks
+· Prevent screensaver from appearing during Remote Playback sessions
+· Greatly improve AV1 decoding performance by updating dav1d
+· Improve adaptive streaming behavior
+· Improve seeking accuracy for certain mp4 media
+· Fix silence after pausing video playback
+
+## iOS [3.2.9]
+
+· Add option to enable Chromecast audio passthrough
+· Fix adding media to existing playlists
+· Fix WiFi sharing on IPv6-only networks
+· Greatly improve AV1 decoding performance by updating dav1d
+· Improve adaptive streaming behavior
+· Improve seeking accuracy for certain mp4 media
+· Fix silence after pausing video playback
+
+## iOS [3.2.8]
+
+· Add support to create media groups manually
+· Port subtitles support from tvOS
+· Fix potential Files app hiding issue
+· Improve application startup time
+· Improve sharing of the library on the local network between multiple VLCs
+· Minor UI improvements and fixes
+
+## tvOS [3.0.7]
+
+· Fix artwork display
+· Fix crashes when navigating network shares
+· Minor UI improvements and fixes
+
+## iOS [3.2.7]
+
+This is a bug fix release, we are actively working on media groups.
+
+· Fix streaming content on Google Drive
+· Add passcode protection for WiFi Sharing
+· Re-add more granular playback speed control
+· Display file size information in Edit mode
+· Fix repeating media when shuffle is disabled
+· Fix uploads of media larger than 10 GB via WiFi
+· Fix storage of recent network streams without iCloud
+· Fix random playback control through lock screen
+· Fix progress display for downloads via FTP
+· Fix missing Share sheet on iPad
+· Fix Chromecast button not to show in some cases
+· Minor UI improvements and fixes
+
+## tvOS [3.0.7]
+
+· Update codecs and networking libraries
+· Fix audio playback delay with external accessories
+· Minor UI improvements by deploying the current SDK
+
+## iOS [3.2.6]
+
+· Fix media title display
+· Fix Box session storage
+
+## iOS [3.2.5]
+
+· Add setting to enable/disable media library iCloud backup
+· Add snap to playback speed with haptic feedback
+· Improve overall iOS 9 stability
+· Update media thumbnail after playback
+· Fix UPnP CPU usage issue
+· Fix potential crash with Plex
+· Fix repeat all mode in playback
+· Fix thumbnail generation on iOS 9
+· Fix media library backup on iCloud
+· Fix cloud services connected account count
+· Fix launch of media playback during a playback
+· Fix unknown and various artists addition and deletion
+· Fix potential crash while deleting an audio collection
+
+## iOS [3.2.4]
+
+· Fix iOS 9 audio playback issues
+· Improve the edit mode toolbar, following user feedback
+· Add import for all supported files from iCloud
+· Add album title inside a audio track description label
+· Fix wrong colors in network views
+· Fix Chromecast background playback
+· Fix default sort for audio collections
+
+## iOS [3.2.3]
+
+· Add sorting into media collections
+· Add settings to hide thumbnails and artwork
+· Add "Quick actions" on media files and collections
+· Fix shuffle mode
+· Fix right to left experience for media players
+· Fix optimize name setting
+· Fix Fritzbox UPnP listing
+· Fix cell height in settings
+· Fix progress bar being shown for media collections
+· Fix undefined media names when importing through Wi-Fi
+· Fix crash with "Open in" activity for iPads
+· Fix potential crash after media deletion
+· Fix potential crash with external and Chromecast devices
+· Rework overall edit mode layout and behaviour
+· Various SMB improvements
+· Various media library stability improvements
+
+## iOS [3.2.2]
+
+· Add automatic video grouping by name
+· Add deletion to audio collections such as artist and albums
+· Add setting to force rescan of the media library
+· Fix HTTP download if file already exist
+· Fix swipe gesture settings affecting double tap to seek
+· Fix meta data for external media
+· Fix Box cloud service overall usage
+· Fix download progress
+· Fix download enqueuing
+· Fix download speed calculation
+· Remove network login automatic capitalization and completion
+· Rework download view according to new design
+· Update translations
+
+## iOS [3.2.1]
+
+· Add automatic appearance setting for iOS 13
+· Add indicator inside a playlist for reordering
+· Adapt empty view for current context
+· Fix SMB 2 credential storage
+· Fix local network navigation
+· Fix local network infinite reloading
+· Fix local network connection dialog
+· Fix external screen, AirPlay mirroring black screen
+· Fix opening media from other applications using x-callback-url
+· Fix artwork being shown after backgrounding the application during playback
+· Fix cancel button not being shown on the local network connect screen on iPads
+· Fix minor stability and interface issues
+· Video Grouping will be back soon in a new version of VLC-iOS
+
 ## iOS [3.2.0]
 · This releases introduces a completely new interface, more intuitive, easier to use and features an up-to-date look. This is a first step for future releases that will improve this interface even more.
 · It also introduces a completely new media library backend, that allows a much easier management of Music and Audio files.

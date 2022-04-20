@@ -14,9 +14,8 @@
 #import "VLCOneDriveTableViewController.h"
 #import "VLCOneDriveController.h"
 #import "VLCCloudStorageTableViewCell.h"
-#import "VLCPlaybackController.h"
+#import "VLCPlaybackService.h"
 #import "VLCProgressView.h"
-#import "UIDevice+VLC.h"
 #import "NSString+SupportedMedia.h"
 #import "VLC-Swift.h"
 
@@ -138,9 +137,10 @@
             NSURL *url = [NSURL URLWithString:streamingURLString];
             NSString *subtitlePath = nil;
             NSInteger positionIndex = 0;
-
+            VLCMedia *mediaToPlay = [VLCMedia mediaWithURL:url];
+            mediaToPlay = [_oneDriveController setMediaNameMetadata:mediaToPlay withName:selectedItem.name];
             if (![[NSUserDefaults standardUserDefaults] boolForKey:kVLCAutomaticallyPlayNextItem]) {
-                mediaList = [[VLCMediaList alloc] initWithArray:@[[VLCMedia mediaWithURL:url]]];
+                mediaList = [[VLCMediaList alloc] initWithArray:@[mediaToPlay]];
                 subtitlePath = [_oneDriveController configureSubtitleWithFileName:selectedItem.name
                                                                       folderItems:items];
             } else {
@@ -170,8 +170,7 @@
         return;
     }
 
-    VLCPlaybackController *vpc = [VLCPlaybackController sharedInstance];
-    vpc.fullscreenSessionRequested = NO;
+    VLCPlaybackService *vpc = [VLCPlaybackService sharedInstance];
     [vpc playMediaList:mediaList firstIndex:startIndex subtitlesFilePath:subtitlesFilePath];
 }
 
@@ -186,7 +185,9 @@
         }
         NSURL *url = [NSURL URLWithString:tmpItem.dictionaryFromItem[@"@content.downloadUrl"]];
         if (url) {
-            [mediaList addMedia:[VLCMedia mediaWithURL:url]];
+            VLCMedia *media = [_oneDriveController setMediaNameMetadata:[VLCMedia mediaWithURL:url]
+                                                               withName:tmpItem.name];
+            [mediaList addMedia:media];
             NSString *subtitlePath = [_oneDriveController configureSubtitleWithFileName:tmpItem.name
                                                                             folderItems:folderItems];
             if (subtitlePath) {

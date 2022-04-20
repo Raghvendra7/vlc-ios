@@ -10,7 +10,7 @@
  *****************************************************************************/
 
 #import "VLCOpenNetworkStreamTVViewController.h"
-#import "VLCPlaybackController.h"
+#import "VLCPlaybackService.h"
 #import "VLCPlayerDisplayController.h"
 #import "VLCFullscreenMovieTVViewController.h"
 #import "CAAnimation+VLCWiggle.h"
@@ -33,6 +33,10 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 
+    if (@available(tvOS 13.0, *)) {
+        self.navigationController.navigationBarHidden = YES;
+    }
+
     self.nothingFoundLabel.text = NSLocalizedString(@"NO_RECENT_STREAMS", nil);
 
     NSNotificationCenter *notificationCenter = [NSNotificationCenter defaultCenter];
@@ -42,6 +46,10 @@
                              object:[NSUbiquitousKeyValueStore defaultStore]];
 
     self.playURLField.placeholder = NSLocalizedString(@"ENTER_URL", nil);
+    if (@available(tvOS 10.0, *)) {
+        self.playURLField.textContentType = UITextContentTypeURL;
+    }
+    self.emptyListButton.accessibilityLabel = NSLocalizedString(@"BUTTON_RESET", nil);
 
     self.previouslyPlayedStreamsTableView.backgroundColor = [UIColor clearColor];
     self.previouslyPlayedStreamsTableView.rowHeight = UITableViewAutomaticDimension;
@@ -74,6 +82,11 @@
 
 - (void)ubiquitousKeyValueStoreDidChange:(NSNotification *)notification
 {
+    if (![NSThread isMainThread]) {
+        [self performSelectorOnMainThread:@selector(ubiquitousKeyValueStoreDidChange:) withObject:notification waitUntilDone:NO];
+        return;
+    }
+
     /* TODO: don't blindly trust that the Cloud knows best */
     _recentURLs = [NSMutableArray arrayWithArray:[[NSUbiquitousKeyValueStore defaultStore] arrayForKey:kVLCRecentURLs]];
     _recentURLTitles = [NSMutableDictionary dictionaryWithDictionary:[[NSUbiquitousKeyValueStore defaultStore] dictionaryForKey:kVLCRecentURLTitles]];
@@ -145,7 +158,7 @@
 
 - (void)_openURLStringAndDismiss:(NSString *)urlString
 {
-    VLCPlaybackController *vpc = [VLCPlaybackController sharedInstance];
+    VLCPlaybackService *vpc = [VLCPlaybackService sharedInstance];
     VLCMedia *media = [VLCMedia mediaWithURL:[NSURL URLWithString:urlString]];
     VLCMediaList *medialist = [[VLCMediaList alloc] init];
     [medialist addMedia:media];
@@ -154,6 +167,36 @@
     [self presentViewController:[VLCFullscreenMovieTVViewController fullscreenMovieTVViewController]
                        animated:YES
                      completion:nil];
+}
+
+- (void)emptyListAction:(id)sender
+{
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"RESET_NETWORK_STREAM_LIST_TITLE", nil)
+                                                                             message:NSLocalizedString(@"RESET_NETWORK_STREAM_LIST_TEXT", nil)
+                                                                      preferredStyle:UIAlertControllerStyleAlert];
+
+    UIAlertAction *deleteAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"BUTTON_RESET", nil)
+                                                     style:UIAlertActionStyleDestructive
+                                                   handler:^(UIAlertAction *action){
+        @synchronized(self->_recentURLs) {
+            NSUbiquitousKeyValueStore *ubiquitousKeyValueStore = [NSUbiquitousKeyValueStore defaultStore];
+            [ubiquitousKeyValueStore setArray:@[] forKey:kVLCRecentURLs];
+            [ubiquitousKeyValueStore setDictionary:@{} forKey:kVLCRecentURLTitles];
+            [[NSUbiquitousKeyValueStore defaultStore] synchronize];
+            self->_recentURLs = [NSMutableArray array];
+            self->_recentURLTitles = [NSMutableDictionary dictionary];
+            [self.previouslyPlayedStreamsTableView reloadData];
+        }
+    }];
+    [alertController addAction:deleteAction];
+    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"BUTTON_CANCEL", nil)
+                                                     style:UIAlertActionStyleCancel
+                                                   handler:nil];
+    [alertController addAction:cancelAction];
+    if ([alertController respondsToSelector:@selector(setPreferredAction:)]) {
+        [alertController setPreferredAction:deleteAction];
+    }
+    [self presentViewController:alertController animated:YES completion:nil];
 }
 
 #pragma mark - editing

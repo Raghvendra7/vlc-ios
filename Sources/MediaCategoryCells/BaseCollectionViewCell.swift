@@ -24,6 +24,15 @@ class BaseCollectionViewCell: UICollectionViewCell {
 
     var media: VLCMLObject?
 
+    private(set) var checkImageView: UIImageView?
+    private(set) var selectionViewOverlay: UIView?
+    private(set) var secondDescriptionLabelView: UILabel?
+    private(set) var descriptionSeparatorLabel: UILabel?
+
+    class func numberOfColumns(for width: CGFloat) -> CGFloat {
+        return CGFloat.zero
+    }
+
     class func cellSizeForWidth(_ width: CGFloat) -> CGSize {
         return CGSize.zero
     }
@@ -39,6 +48,7 @@ class BaseCollectionViewCell: UICollectionViewCell {
 
 enum DeviceWidth: CGFloat {
     case iPhonePortrait = 414
-    case iPhoneLandscape = 896
+    case iPhone12ProMaxPortrait = 428
+    case iPhoneLandscape = 926
     case iPadLandscape = 1024
 }

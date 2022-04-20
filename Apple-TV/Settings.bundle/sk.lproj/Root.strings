@@ -4,18 +4,24 @@
 "SETTINGS_VIDEO_TITLE" = "Video";
 "SETTINGS_AUDIO_TITLE" = "Zvuk";
 
-"SETTINGS_THEME_SUBTITLE" = "Zmeniť farby aplikácie";
+"SETTINGS_THEME_BRIGHT" = "Svetlá téma";
+"SETTINGS_THEME_DARK" = "Tmavá téma";
+"SETTINGS_THEME_SYSTEM" = "Automaticky";
+"SETTINGS_THEME_BLACK" = "Použiť čierne pozadie pri tmavom režime";
+"SETTINGS_THEME_BLACK_SUBTITLE" = "Zlepšuje životnosť batérie na zariadeniach s OLED displejom";
 "SETTINGS_PRIVACY_SUBTITLE" = "Otvoriť v nastaveniach";
 "SETTINGS_PASSCODE_LOCK_SUBTITLE" = "Bezpečný prístup k vášmu obsahu";
+"SETTINGS_HIDE_LIBRARY_IN_FILES_APP_SUBTITLE" = "Vaše médium bude skryté v aplikácii Súbory";
 
-"SETTINGS_DARKTHEME" = "Tmavá téma";
+"SETTINGS_DARKTHEME" = "Vzhľad";
 "SETTINGS_TIME_STRETCH_AUDIO" = "Časové roztiahnutie zvuku";
+"SETTINGS_TIME_STRETCH_AUDIO_LONG" = "Zrýchliť a spomaliť zvuk bez zmeny výšky tónu (vyžaduje rýchle zariadenie)";
 "SETTINGS_BACKGROUND_AUDIO" = "Prehrávanie zvuku na pozadí";
 "SETTINGS_GENERIC_TITLE" = "Všeobecné";
 "SETTINGS_PASSCODE_LOCK" = "Uzamknutie pomocou hesla";
 "SETTINGS_PASSCODE_LOCK_ALLOWTOUCHID" = "Povoliť Touch ID pre odomknutie";
 "SETTINGS_PASSCODE_LOCK_ALLOWFACEID" = "Povoliť Face ID pre odomknutie";
-"SETTINGS_DECRAPIFY" = "Optimalizovať názvy položiek pre displej";
+"SETTINGS_HIDE_LIBRARY_IN_FILES_APP" = "Skryť knižnicu médií v aplikácii Súbory";
 "SETTINGS_VIDEO_FULLSCREEN" = "Prehrať video na celej obrazovke";
 "SETTINGS_CONTINUE_VIDEO_PLAYBACK" = "Pokračovať v prehrávaní videa";
 "SETTINGS_CONTINUE_AUDIO_PLAYBACK" = "Pokračovať v prehrávaní zvuku";
@@ -23,18 +29,12 @@
 "SETTINGS_CONTINUE_PLAYBACK_ASK" = "Opýtať sa";
 "SETTINGS_CONTINUE_PLAYBACK_ALWAYS" = "Vždy";
 "SETTINGS_NETWORK_PLAY_ALL" = "Automaticky prehrať ďalšiu položku";
+"SETTINGS_ENABLE_MEDIA_CELL_TEXT_SCROLLING" = "Zapnúť rolovanie textu v zozname médií";
 
 "SETTINGS_SKIP_LOOP_FILTER" = "Deblokovací filter";
 "SETTINGS_SKIP_LOOP_FILTER_NONE" = "Žiadne deblokovanie (najrýchlejšie)";
 "SETTINGS_SKIP_LOOP_FILTER_NONREF" = "Stredné deblokovanie";
 "SETTINGS_SKIP_LOOP_FILTER_NONKEY" = "Nízka miera deblokovania";
-
-"SETTINGS_NETWORK_CACHING_TITLE" = "Hodnota ukladania do vyrovnávacej pamäte zo siete";
-"SETTINGS_NETWORK_CACHING_LEVEL_LOWEST" = "Najnižšia latencia";
-"SETTINGS_NETWORK_CACHING_LEVEL_LOW" = "Nízka latencia";
-"SETTINGS_NETWORK_CACHING_LEVEL_NORMAL" = "Normálne";
-"SETTINGS_NETWORK_CACHING_LEVEL_HIGH" = "Vysoká latencia";
-"SETTINGS_NETWORK_CACHING_LEVEL_HIGHEST" = "Najvyššia latencia";
 
 "SETTINGS_PLAYBACK_SPEED_DEFAULT" = "Predvolená rýchlosť prehrávania";
 
@@ -80,19 +80,45 @@
 "SETTINGS_HWDECODING" = "Hardvérové dekódovanie";
 "SETTINGS_HWDECODING_ON" = "Zap.";
 "SETTINGS_HWDECODING_OFF" = "Vyp.";
+"SETTINGS_CASTING" = "Streamovanie (casting) ";
+"SETTINGS_PTCASTING" = "Prechod zvuku";
+"SETTINGS_PTCASTINGLONG" = "Prenechať správu vykresľovania zvuku na TV";
+"SETTINGS_CASTING_CONVERSION_QUALITY" = "Kvalita konverzie";
+"SETTINGS_HIGH" = "Vysoká";
+"SETTINGS_MEDIUM" = "Stredná";
+"SETTINGS_LOW" = "Nízka";
+"SETTINGS_LOWEST" = "Najnižšia";
 
 "SETTINGS_FEEDBACK" = "Spätná odozva";
 "SETTINGS_SEND_FEEDBACK" = "Odoslať spätnú odozvu";
 "SETTINGS_SEND_RATING" = "Prosím ohodnoťte VLC pre iOS";
 
-"SETTINGS_FILE_SYNC" = "Synchronizácia súboru";
-"SETTINGS_WIFISHARING_IPv6" = "Podpora IPv6 pre zdieľanie cez WiFi";
-"SETTINGS_UNLINK_DROPBOX" = "Odpojiť od služby Dropbox";
-"SETTINGS_UNLINK_GOOGLEDRIVE" = "Odpojiť od služby Google Drive";
-"SETTINGS_UNLINK_ONEDRIVE" = "Odpojiť od služby OneDrive";
-"SETTINGS_FTP_TEXT_ENCODING" = "Kódovanie textu pre pripojenia FTP";
+"SETTINGS_MEDIA_LIBRARY" = "Knižnica médií";
+"SETTINGS_MEDIA_LIBRARY_RESCAN" = "Vynútiť si preskenovanie knižnice médií aplikáciou VLC";
+"SETTINGS_DECRAPIFY" = "Optimalizovať názvy položiek pre displej";
+"SETTINGS_DISABLE_GROUPING" = "Vypnúť automatické zoskupovanie médií";
+"SETTINGS_SHOW_THUMBNAILS" = "Zobraziť náhľady videa";
+"SETTINGS_SHOW_ARTWORKS" = "Zobraziť vyobrazenia obalov";
+"SETTINGS_BACKUP_MEDIA_LIBRARY" = "Zahrnúť knižnicu médií do zálohovania zariadenia";
+
+"SETTINGS_NETWORK" = "Sieť";
+"SETTINGS_NETWORK_CACHING_TITLE" = "Hodnota ukladania do vyrovnávacej pamäte zo siete";
+"SETTINGS_NETWORK_CACHING_LEVEL_LOWEST" = "Najnižšia latencia";
+"SETTINGS_NETWORK_CACHING_LEVEL_LOW" = "Nízka latencia";
+"SETTINGS_NETWORK_CACHING_LEVEL_NORMAL" = "Normálne";
+"SETTINGS_NETWORK_CACHING_LEVEL_HIGH" = "Vysoká latencia";
+"SETTINGS_NETWORK_CACHING_LEVEL_HIGHEST" = "Najvyššia latencia";
+"SETTINGS_WIFISHARING_IPv6" = "Podpora IPv6 pre Wi-Fi zdieľanie";
+"SETTINGS_FORCE_SMBV1" = "Uprednostniť SMB 1";
+"SETTINGS_FORCE_SMBV1_LONG" = "Ak máte problém s prehliadaním na SMB server, odznačte toto nastavenie";
+"SETTINGS_RTSP_TCP" = "Používať RTP cez RTSP (TCP)";
+"SETTINGS_NETWORK_SATIP_CUSTOM_CHANNEL_LIST" = "URL adresa pre používateľský zoznam kanálov SAT>IP";
 
 "SETTINGS_ARTWORK" = "Dielo";
 "SETTINGS_DOWNLOAD_ARTWORK" = "Stiahnuť dielo";
+
+"SETTINGS_LAB" = "Lab";
+"SETTINGS_DEBUG_LOG" = "Ukladať záznamy pre ladenie na zariadení";
+"SETTINGS_EXPORT_LIBRARY" = "Výpis z pamäte knižnice médií";
 
 "ABOUT_APP_TV" = "O aplikácii VLC pre tvOS";

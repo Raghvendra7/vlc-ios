@@ -9,27 +9,39 @@
  *
  * Refer to the COPYING file of the official project for license.
  *****************************************************************************/
-import Foundation
+
+import UIKit
 
 enum RemoteNetworkCellType: Int {
+    @available(iOS 11.0, *)
+    case local
     case cloud
     case streaming
     case download
     case wifi
+    static let first: Int = {
+        if let _ = RemoteNetworkCellType(rawValue: 0) {
+            return 0
+        } else {
+            return 1
+        }
+    }()
     static let count: Int = {
-        var max: Int = 0
+        var max: Int = first
         while let _ = RemoteNetworkCellType(rawValue: max) { max += 1 }
-        return max
+        return max - first
     }()
 }
 
 @objc(VLCRemoteNetworkDataSourceDelegate)
 protocol RemoteNetworkDataSourceDelegate {
     func showViewController(_ viewController: UIViewController)
+    func showDocumentPickerViewController(_ viewController: UIDocumentPickerViewController)
 }
 
 @objc(VLCRemoteNetworkDataSourceAndDelegate)
 class RemoteNetworkDataSource: NSObject, UITableViewDataSource, UITableViewDelegate {
+    let localVC = UIDocumentPickerViewController(documentTypes: ["public.item"], in: .open)
     let cloudVC = VLCCloudServicesTableViewController(nibName: "VLCCloudServicesTableViewController", bundle: Bundle.main)
     let streamingVC = VLCOpenNetworkStreamViewController(nibName: "VLCOpenNetworkStreamViewController", bundle: Bundle.main)
     let downloadVC = VLCDownloadViewController(nibName: "VLCDownloadViewController", bundle: Bundle.main)
@@ -43,13 +55,21 @@ class RemoteNetworkDataSource: NSObject, UITableViewDataSource, UITableViewDeleg
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        guard let cellType = RemoteNetworkCellType(rawValue: indexPath.row) else {
+        guard let cellType = RemoteNetworkCellType(rawValue: indexPath.row + RemoteNetworkCellType.first) else {
             assertionFailure("We're having more rows than types of cells that should never happen")
             return UITableViewCell()
         }
         switch cellType {
+        case .local:
+            if let localFilesCell = tableView.dequeueReusableCell(withIdentifier: ExternalMediaProviderCell.cellIdentifier) {
+                localFilesCell.textLabel?.text = NSLocalizedString("FILES_APP_CELL_TITLE", comment: "")
+                localFilesCell.detailTextLabel?.text = NSLocalizedString("FILES_APP_CELL_SUBTITLE", comment: "")
+                localFilesCell.imageView?.image = UIImage(named: "homeLocalFiles")?.withRenderingMode(.alwaysTemplate)
+                localFilesCell.accessibilityIdentifier = VLCAccessibilityIdentifier.local
+                return localFilesCell
+            }
         case .cloud:
-            if let networkCell = tableView.dequeueReusableCell(withIdentifier: VLCRemoteNetworkCell.cellIdentifier) {
+            if let networkCell = tableView.dequeueReusableCell(withIdentifier: RemoteNetworkCell.cellIdentifier) {
                 networkCell.textLabel?.text = cloudVC.title
                 networkCell.detailTextLabel?.text = cloudVC.detailText
                 networkCell.imageView?.image = cloudVC.cellImage
@@ -57,7 +77,7 @@ class RemoteNetworkDataSource: NSObject, UITableViewDataSource, UITableViewDeleg
                 return networkCell
             }
         case .streaming:
-            if let networkCell = tableView.dequeueReusableCell(withIdentifier: VLCRemoteNetworkCell.cellIdentifier) {
+            if let networkCell = tableView.dequeueReusableCell(withIdentifier: RemoteNetworkCell.cellIdentifier) {
                 networkCell.textLabel?.text = streamingVC.title
                 networkCell.detailTextLabel?.text = streamingVC.detailText
                 networkCell.imageView?.image = streamingVC.cellImage
@@ -65,7 +85,7 @@ class RemoteNetworkDataSource: NSObject, UITableViewDataSource, UITableViewDeleg
                 return networkCell
             }
         case .download:
-            if let networkCell = tableView.dequeueReusableCell(withIdentifier: VLCRemoteNetworkCell.cellIdentifier) {
+            if let networkCell = tableView.dequeueReusableCell(withIdentifier: RemoteNetworkCell.cellIdentifier) {
                 networkCell.textLabel?.text = downloadVC.title
                 networkCell.detailTextLabel?.text = downloadVC.detailText
                 networkCell.imageView?.image = downloadVC.cellImage
@@ -83,23 +103,31 @@ class RemoteNetworkDataSource: NSObject, UITableViewDataSource, UITableViewDeleg
 
     // MARK: - Delegate
 
-    func tableView(_ tableView: UITableView, willSelectRowAt indexPath: IndexPath) -> IndexPath? {
-        return RemoteNetworkCellType(rawValue: indexPath.row) == .wifi ? nil : indexPath
-    }
-
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         if let vc = viewController(indexPath: indexPath) {
-            delegate?.showViewController(vc)
+            if let vc = vc as? UIDocumentPickerViewController {
+                delegate?.showDocumentPickerViewController(vc)
+            } else {
+                delegate?.showViewController(vc)
+            }
+        } else if RemoteNetworkCellType(rawValue: indexPath.row + RemoteNetworkCellType.first) == .wifi {
+            if tableView.cellForRow(at: indexPath)?.selectionStyle == .default {
+                UIPasteboard.general.string = VLCHTTPUploaderController.sharedInstance().addressToCopy()
+                UIAlertController.autoDismissable(title: NSLocalizedString("WEBINTF_TITLE", comment: ""),
+                                                  message: NSLocalizedString("WEBINTF_ADDRESS_COPIED", comment: ""))
+            }
         }
     }
 
     @objc func viewController(indexPath: IndexPath) -> UIViewController? {
-        guard let cellType = RemoteNetworkCellType(rawValue: indexPath.row) else {
+        guard let cellType = RemoteNetworkCellType(rawValue: indexPath.row + RemoteNetworkCellType.first) else {
             assertionFailure("We're having more rows than types of cells that should never happen")
             return nil
         }
         switch cellType {
+        case .local:
+            return localVC
         case .cloud:
             return cloudVC
         case .streaming:
@@ -107,19 +135,18 @@ class RemoteNetworkDataSource: NSObject, UITableViewDataSource, UITableViewDeleg
         case .download:
             return downloadVC
         case .wifi:
-            assertionFailure("We shouldn't get in here since we return nil in willSelect")
             return nil
         }
     }
 
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        guard let cellType = RemoteNetworkCellType(rawValue: indexPath.row) else {
+        guard let cellType = RemoteNetworkCellType(rawValue: indexPath.row + RemoteNetworkCellType.first) else {
             assertionFailure("We're having more rows than types of cells that should never happen")
             return UITableView.automaticDimension
         }
         switch cellType {
-        case .cloud, .streaming, .download:
-            return UITableView.automaticDimension
+        case .local, .cloud, .streaming, .download:
+            return 64
         case .wifi:
             return 80
         }

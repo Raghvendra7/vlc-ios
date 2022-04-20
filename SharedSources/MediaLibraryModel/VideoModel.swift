@@ -14,28 +14,26 @@ class VideoModel: MediaModel {
 
     var sortModel = SortModel([.alpha, .duration, .insertionDate, .releaseDate, .fileSize])
 
-    var updateView: (() -> Void)?
+    var observable = Observable<MediaLibraryBaseModelObserver>()
 
     var files = [VLCMLMedia]()
 
-    var cellType: BaseCollectionViewCell.Type { return MovieCollectionViewCell.self }
+    var cellType: BaseCollectionViewCell.Type {
+        return UserDefaults.standard.bool(forKey: "\(kVLCVideoLibraryGridLayout)\(name)") ? MovieCollectionViewCell.self : MediaCollectionViewCell.self
+    }
 
     var medialibrary: MediaLibraryService
 
-    var indicatorName: String = NSLocalizedString("MOVIES", comment: "")
+    var name: String = "ALL_VIDEOS"
+
+    var secondName: String = ""
+
+    var indicatorName: String = NSLocalizedString("ALL_VIDEOS", comment: "")
 
     required init(medialibrary: MediaLibraryService) {
         self.medialibrary = medialibrary
-        medialibrary.addObserver(self)
+        medialibrary.observable.addObserver(self)
         files = medialibrary.media(ofType: .video)
-    }
-}
-
-// MARK: - Edit
-
-extension VideoModel: EditableMLModel {
-    func editCellType() -> BaseCollectionViewCell.Type {
-        return MediaEditCell.self
     }
 }
 
@@ -48,7 +46,9 @@ extension VideoModel {
                                    desc: desc)
         sortModel.currentSort = criteria
         sortModel.desc = desc
-        updateView?()
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
     }
 }
 
@@ -57,13 +57,17 @@ extension VideoModel {
 extension VideoModel: MediaLibraryObserver {
     func medialibrary(_ medialibrary: MediaLibraryService, didAddVideos videos: [VLCMLMedia]) {
         videos.forEach({ append($0) })
-        updateView?()
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
     }
 
     func medialibrary(_ medialibrary: MediaLibraryService, didModifyVideos videos: [VLCMLMedia]) {
         if !videos.isEmpty {
             files = swapModels(with: videos)
-            updateView?()
+            observable.observers.forEach() {
+                $0.value.observer?.mediaLibraryBaseModelReloadView()
+            }
         }
     }
 
@@ -74,16 +78,22 @@ extension VideoModel: MediaLibraryObserver {
             }
             return true
         }
-        updateView?()
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
     }
 
     // MARK: - Thumbnail
 
-    func medialibrary(_ medialibrary: MediaLibraryService, thumbnailReady media: VLCMLMedia) {
-        for (index, file) in files.enumerated() where file == media {
-            files[index] = media
-            break
+    func medialibrary(_ medialibrary: MediaLibraryService,
+                      thumbnailReady media: VLCMLMedia,
+                      type: VLCMLThumbnailSizeType, success: Bool) {
+        guard success else {
+            return
         }
-        updateView?()
+        files = swapModels(with: [media])
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
     }
 }

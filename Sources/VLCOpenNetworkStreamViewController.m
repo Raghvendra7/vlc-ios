@@ -2,7 +2,7 @@
  * VLCOpenNetworkStreamViewController.m
  * VLC for iOS
  *****************************************************************************
- * Copyright (c) 2013-2018 VideoLAN. All rights reserved.
+ * Copyright (c) 2013-2022 VideoLAN. All rights reserved.
  * $Id$
  *
  * Authors: Felix Paul Kühne <fkuehne # videolan.org>
@@ -13,9 +13,8 @@
  *****************************************************************************/
 
 #import "VLCOpenNetworkStreamViewController.h"
-#import "VLCPlaybackController.h"
+#import "VLCPlaybackService.h"
 #import "VLCStreamingHistoryCell.h"
-#import "UIDevice+VLC.h"
 #import "VLC-Swift.h"
 
 @interface VLCOpenNetworkStreamViewController () <UITableViewDataSource, UITableViewDelegate, UITextFieldDelegate, VLCStreamingHistoryCellMenuItemProtocol>
@@ -49,8 +48,18 @@
     [self updatePasteboardTextInURLField];
 }
 
+- (BOOL)ubiquitousKeyStoreAvailable
+{
+    return [[NSFileManager defaultManager] ubiquityIdentityToken] != nil;
+}
+
 - (void)ubiquitousKeyValueStoreDidChange:(NSNotification *)notification
 {
+    if (![NSThread isMainThread]) {
+        [self performSelectorOnMainThread:@selector(ubiquitousKeyValueStoreDidChange:) withObject:notification waitUntilDone:NO];
+        return;
+    }
+
     /* TODO: don't blindly trust that the Cloud knows best */
     _recentURLs = [NSMutableArray arrayWithArray:[[NSUbiquitousKeyValueStore defaultStore] arrayForKey:kVLCRecentURLs]];
     _recentURLTitles = [NSMutableDictionary dictionaryWithDictionary:[[NSUbiquitousKeyValueStore defaultStore] dictionaryForKey:kVLCRecentURLTitles]];
@@ -71,24 +80,33 @@
                            selector:@selector(updateForTheme)
                                name:kVLCThemeDidChangeNotification
                              object:nil];
-    /* force store update */
-    NSUbiquitousKeyValueStore *ubiquitousKeyValueStore = [NSUbiquitousKeyValueStore defaultStore];
-    [ubiquitousKeyValueStore synchronize];
 
-    /* fetch data from cloud */
-    _recentURLs = [NSMutableArray arrayWithArray:[[NSUbiquitousKeyValueStore defaultStore] arrayForKey:kVLCRecentURLs]];
-    _recentURLTitles = [NSMutableDictionary dictionaryWithDictionary:[[NSUbiquitousKeyValueStore defaultStore] dictionaryForKey:kVLCRecentURLTitles]];
+    if ([self ubiquitousKeyStoreAvailable]) {
+        APLog(@"%s: ubiquitous key store is available", __func__);
+        /* force store update */
+        NSUbiquitousKeyValueStore *ubiquitousKeyValueStore = [NSUbiquitousKeyValueStore defaultStore];
+        [ubiquitousKeyValueStore synchronize];
 
-    /* merge data from local storage (aka legacy VLC versions) */
-    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-    NSArray *localRecentUrls = [defaults objectForKey:kVLCRecentURLs];
-    if (localRecentUrls != nil) {
-        if (localRecentUrls.count != 0) {
-            [_recentURLs addObjectsFromArray:localRecentUrls];
-            [defaults setObject:nil forKey:kVLCRecentURLs];
-            [ubiquitousKeyValueStore setArray:_recentURLs forKey:kVLCRecentURLs];
-            [ubiquitousKeyValueStore synchronize];
+        /* fetch data from cloud */
+        _recentURLs = [NSMutableArray arrayWithArray:[[NSUbiquitousKeyValueStore defaultStore] arrayForKey:kVLCRecentURLs]];
+        _recentURLTitles = [NSMutableDictionary dictionaryWithDictionary:[[NSUbiquitousKeyValueStore defaultStore] dictionaryForKey:kVLCRecentURLTitles]];
+
+        /* merge data from local storage (aka legacy VLC versions) */
+        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+        NSArray *localRecentUrls = [defaults objectForKey:kVLCRecentURLs];
+        if (localRecentUrls != nil) {
+            if (localRecentUrls.count != 0) {
+                [_recentURLs addObjectsFromArray:localRecentUrls];
+                [defaults setObject:nil forKey:kVLCRecentURLs];
+                [ubiquitousKeyValueStore setArray:_recentURLs forKey:kVLCRecentURLs];
+                [ubiquitousKeyValueStore synchronize];
+            }
         }
+    } else {
+        APLog(@"%s: ubiquitous key store is not available", __func__);
+        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+        _recentURLs = [NSMutableArray arrayWithArray:[defaults objectForKey:kVLCRecentURLs]];
+        _recentURLTitles = [NSMutableDictionary dictionaryWithDictionary:[defaults objectForKey:kVLCRecentURLTitles]];
     }
 
     /*
@@ -102,17 +120,24 @@
                                name:UIApplicationDidBecomeActiveNotification
                              object:[UIApplication sharedApplication]];
 
+    self.whatToOpenHelpLabel.backgroundColor = [UIColor clearColor];
     [self.openButton setTitle:NSLocalizedString(@"OPEN_NETWORK", nil) forState:UIControlStateNormal];
     [self.openButton setAccessibilityIdentifier:@"Open Network Stream"];
+    self.openButton.layer.cornerRadius = 4.0;
     [self.privateModeLabel setText:NSLocalizedString(@"PRIVATE_PLAYBACK_TOGGLE", nil)];
-    UILabel *scanSubModelabel = self.ScanSubModeLabel;
-    [scanSubModelabel setText:NSLocalizedString(@"SCAN_SUBTITLE_TOGGLE", nil)];
-    [scanSubModelabel setAdjustsFontSizeToFitWidth:YES];
-    [scanSubModelabel setNumberOfLines:0];
+    [self.scanSubModeLabel setText:NSLocalizedString(@"SCAN_SUBTITLE_TOGGLE", nil)];
+
+    [self.privateToggleButton setImage:[UIImage imageNamed:@"iconCheckbox-checked"] forState:UIControlStateSelected];
+    [self.privateToggleButton setImage:[UIImage imageNamed:@"iconCheckbox-empty"] forState:UIControlStateNormal];
+    [self.scanSubToggleButton setImage:[UIImage imageNamed:@"iconCheckbox-checked"] forState:UIControlStateSelected];
+    [self.scanSubToggleButton setImage:[UIImage imageNamed:@"iconCheckbox-empty"] forState:UIControlStateNormal];
 
     [self.whatToOpenHelpLabel setText:NSLocalizedString(@"OPEN_NETWORK_HELP", nil)];
     self.urlField.delegate = self;
     self.urlField.keyboardType = UIKeyboardTypeURL;
+    if (@available(iOS 10.0, *)) {
+        self.urlField.textContentType = UITextContentTypeURL;
+    }
 
     self.edgesForExtendedLayout = UIRectEdgeNone;
 
@@ -127,6 +152,8 @@
     [sharedMenuController setMenuItems:@[renameItem]];
     [sharedMenuController update];
     [self updateForTheme];
+
+    self.historyTableView.rowHeight = [VLCStreamingHistoryCell heightOfCell];
 }
 
 - (NSString *)detailText
@@ -141,16 +168,20 @@
 
 - (void)updateForTheme
 {
-    self.historyTableView.backgroundColor = PresentationTheme.current.colors.background;
-    self.view.backgroundColor = PresentationTheme.current.colors.background;
-    NSAttributedString *coloredAttributedPlaceholder = [[NSAttributedString alloc] initWithString:@"http://myserver.com/file.mkv" attributes:@{NSForegroundColorAttributeName: PresentationTheme.current.colors.lightTextColor}];
+    ColorPalette *colors = PresentationTheme.current.colors;
+    self.historyTableView.backgroundColor = colors.background;
+    self.view.backgroundColor = colors.background;
+    NSAttributedString *coloredAttributedPlaceholder = [[NSAttributedString alloc] initWithString:@"http://myserver.com/file.mkv" attributes:@{NSForegroundColorAttributeName: colors.textfieldPlaceholderColor}];
     self.urlField.attributedPlaceholder = coloredAttributedPlaceholder;
-    self.urlField.backgroundColor = PresentationTheme.current.colors.cellBackgroundB;
-    self.urlField.textColor = PresentationTheme.current.colors.cellTextColor;
-    self.privateModeLabel.textColor = PresentationTheme.current.colors.lightTextColor;
-    self.ScanSubModeLabel.textColor = PresentationTheme.current.colors.lightTextColor;
-    self.whatToOpenHelpLabel.textColor = PresentationTheme.current.colors.lightTextColor;
-    self.openButton.backgroundColor = PresentationTheme.current.colors.orangeUI;
+    self.urlField.backgroundColor = colors.mediaCategorySeparatorColor;
+    self.urlField.textColor = colors.cellTextColor;
+    self.urlBorder.backgroundColor = colors.textfieldBorderColor;
+    self.privateModeLabel.textColor = colors.lightTextColor;
+    self.scanSubModeLabel.textColor = colors.lightTextColor;
+    self.whatToOpenHelpLabel.textColor = colors.lightTextColor;
+    self.openButton.backgroundColor = colors.orangeUI;
+    self.privateToggleButton.tintColor = colors.orangeUI;
+    self.scanSubToggleButton.tintColor = colors.orangeUI;
     [self.historyTableView reloadData];
     [self setNeedsStatusBarAppearanceUpdate];
 }
@@ -170,8 +201,8 @@
 - (void)viewWillAppear:(BOOL)animated
 {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-    self.privateToggleSwitch.on = [defaults boolForKey:kVLCPrivateWebStreaming];
-    self.ScanSubToggleSwitch.on = [defaults boolForKey:kVLChttpScanSubtitle];
+    self.privateToggleButton.selected = [defaults boolForKey:kVLCPrivateWebStreaming];
+    self.scanSubToggleButton.selected = [defaults boolForKey:kVLChttpScanSubtitle];
 
     [super viewWillAppear:animated];
 }
@@ -183,8 +214,8 @@
                                                   object:[UIApplication sharedApplication]];
 
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-    [defaults setBool:self.privateToggleSwitch.on forKey:kVLCPrivateWebStreaming];
-    [defaults setBool:self.ScanSubToggleSwitch.on forKey:kVLChttpScanSubtitle];
+    [defaults setBool:self.privateToggleButton.selected forKey:kVLCPrivateWebStreaming];
+    [defaults setBool:self.scanSubToggleButton.selected forKey:kVLChttpScanSubtitle];
     [self.view endEditing:YES];
 
     /* force update before we leave */
@@ -206,6 +237,11 @@
     return YES;
 }
 
+- (IBAction)toggleButtonAction:(UIButton *)sender
+{
+    sender.selected = !sender.selected;
+}
+
 - (IBAction)openButtonAction:(id)sender
 {
     if ([self.urlField.text length] <= 0 || [NSURL URLWithString:self.urlField.text] == nil) {
@@ -214,7 +250,7 @@
                                            viewController:self];
         return;
     }
-    if (!self.privateToggleSwitch.on) {
+    if (!self.privateToggleButton.selected) {
         NSString *urlString = self.urlField.text;
         if ([_recentURLs indexOfObject:urlString] != NSNotFound)
             [_recentURLs removeObject:urlString];
@@ -222,7 +258,11 @@
         if (_recentURLs.count >= 100)
             [_recentURLs removeLastObject];
         [_recentURLs addObject:urlString];
-        [[NSUbiquitousKeyValueStore defaultStore] setArray:_recentURLs forKey:kVLCRecentURLs];
+        if ([self ubiquitousKeyStoreAvailable]) {
+            [[NSUbiquitousKeyValueStore defaultStore] setArray:_recentURLs forKey:kVLCRecentURLs];
+        } else {
+            [[NSUserDefaults standardUserDefaults] setObject:_recentURLs forKey:kVLCRecentURLs];
+        }
 
         [self.historyTableView reloadData];
     }
@@ -267,10 +307,15 @@
 - (void)renameStreamWithTitle:(NSString *)title atIndex:(NSInteger)index
 {
     [_recentURLTitles setObject:title forKey:[@(index) stringValue]];
-    [[NSUbiquitousKeyValueStore defaultStore] setDictionary:_recentURLTitles forKey:kVLCRecentURLTitles];
-    [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+    if ([self ubiquitousKeyStoreAvailable]) {
+        [[NSUbiquitousKeyValueStore defaultStore] setDictionary:_recentURLTitles forKey:kVLCRecentURLTitles];
+        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+            [self.historyTableView reloadSections:[NSIndexSet indexSetWithIndex:0] withRowAnimation:UITableViewRowAnimationAutomatic];
+        }];
+    } else {
+        [[NSUserDefaults standardUserDefaults] setObject:_recentURLTitles forKey:kVLCRecentURLTitles];
         [self.historyTableView reloadSections:[NSIndexSet indexSetWithIndex:0] withRowAnimation:UITableViewRowAnimationAutomatic];
-    }];
+    }
 }
 
 #pragma mark - table view data source
@@ -289,29 +334,21 @@
     static NSString *CellIdentifier = @"StreamingHistoryCell";
 
     VLCStreamingHistoryCell *cell = (VLCStreamingHistoryCell *)[tableView dequeueReusableCellWithIdentifier:CellIdentifier];
-    if (cell == nil) {
-        cell = [[VLCStreamingHistoryCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:CellIdentifier];
-        cell.delegate = self;
-        [cell customizeAppearance];
-    }
+    if (cell == nil)
+        cell = (VLCStreamingHistoryCell *)[VLCStreamingHistoryCell cellWithReuseIdentifier:CellIdentifier];
 
     NSString *content = [_recentURLs[indexPath.row] stringByRemovingPercentEncoding];
     NSString *possibleTitle = _recentURLTitles[[@(indexPath.row) stringValue]];
 
-    cell.detailTextLabel.text = content;
-    cell.textLabel.text = possibleTitle ?: [content lastPathComponent];
+    cell.titleLabel.text = possibleTitle ?: [content lastPathComponent];
+    cell.subtitleLabel.text = content;
+    cell.thumbnailView.image = [UIImage imageNamed:@"serverIcon"];
+    cell.delegate = self;
 
     return cell;
 }
 
 #pragma mark - table view delegate
-
-- (void)tableView:(UITableView *)tableView willDisplayCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath
-{
-    cell.backgroundColor = PresentationTheme.current.colors.cellBackgroundA;
-    cell.textLabel.textColor =  PresentationTheme.current.colors.cellTextColor;
-    cell.detailTextLabel.textColor =  PresentationTheme.current.colors.cellDetailTextColor;
-}
 
 - (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath
 {
@@ -323,8 +360,16 @@
     if (editingStyle == UITableViewCellEditingStyleDelete) {
         [_recentURLs removeObjectAtIndex:indexPath.row];
         [_recentURLTitles removeObjectForKey:[@(indexPath.row) stringValue]];
-        [[NSUbiquitousKeyValueStore defaultStore] setArray:_recentURLs forKey:kVLCRecentURLs];
-        [[NSUbiquitousKeyValueStore defaultStore] setDictionary:_recentURLTitles forKey:kVLCRecentURLTitles];
+        if ([self ubiquitousKeyStoreAvailable]) {
+            NSUbiquitousKeyValueStore *keyValueStore = [NSUbiquitousKeyValueStore defaultStore];
+            [keyValueStore setArray:_recentURLs forKey:kVLCRecentURLs];
+            [keyValueStore setDictionary:_recentURLTitles forKey:kVLCRecentURLTitles];
+        } else {
+            NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+            [userDefaults setObject:_recentURLs forKey:kVLCRecentURLs];
+            [userDefaults setObject:_recentURLTitles forKey:kVLCRecentURLTitles];
+        }
+
         [tableView reloadData];
     }
 }
@@ -368,29 +413,31 @@ forRowAtIndexPath:(NSIndexPath *)indexPath
 - (void)_openURLStringAndDismiss:(NSString *)url
 {
     NSURL *playbackURL = [NSURL URLWithString:url];
-    NSURL *subtitlesURL = nil;
-
-    if (([playbackURL.scheme isEqualToString:@"http"] || [playbackURL.scheme isEqualToString:@"https"]) && self.ScanSubToggleSwitch.on) {
-        subtitlesURL = [self _checkURLofSubtitle:playbackURL];
-    }
 
     VLCMedia *media = [VLCMedia mediaWithURL:[NSURL URLWithString:url]];
     VLCMediaList *medialist = [[VLCMediaList alloc] init];
     [medialist addMedia:media];
-    [[VLCPlaybackController sharedInstance] playMediaList:medialist firstIndex:0 subtitlesFilePath:subtitlesURL.absoluteString];
+    [[VLCPlaybackService sharedInstance] playMediaList:medialist firstIndex:0 subtitlesFilePath:nil];
+
+    if (([playbackURL.scheme isEqualToString:@"http"] || [playbackURL.scheme isEqualToString:@"https"]) && self.scanSubToggleButton.selected) {
+        dispatch_async(dispatch_get_global_queue( DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            [self _tryToFindSubtitleOnServerForURL:playbackURL];
+        });
+    }
 }
 
-- (NSURL *)_checkURLofSubtitle:(NSURL *)url
+- (void)_tryToFindSubtitleOnServerForURL:(NSURL *)url
 {
     NSCharacterSet *characterFilter = [NSCharacterSet characterSetWithCharactersInString:@"\\.():$"];
     NSString *subtitleFileExtensions = [[kSupportedSubtitleFileExtensions componentsSeparatedByCharactersInSet:characterFilter] componentsJoinedByString:@""];
     NSArray *arraySubtitleFileExtensions = [subtitleFileExtensions componentsSeparatedByString:@"|"];
     NSURL *urlWithoutExtension = [url URLByDeletingPathExtension];
     NSUInteger count = arraySubtitleFileExtensions.count;
+    NSURL *matchedURL = nil;
 
     for (int i = 0; i < count; i++) {
-        NSURL *checkURL = [urlWithoutExtension URLByAppendingPathExtension:arraySubtitleFileExtensions[i]];
-        NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:checkURL];
+        matchedURL = [urlWithoutExtension URLByAppendingPathExtension:arraySubtitleFileExtensions[i]];
+        NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:matchedURL];
         request.HTTPMethod = @"HEAD";
 
         NSURLResponse *response = nil;
@@ -399,30 +446,30 @@ forRowAtIndexPath:(NSIndexPath *)indexPath
         NSInteger httpStatus = [(NSHTTPURLResponse *)response statusCode];
 
         if (httpStatus == 200) {
-            APLog(@"%s:found matching spu file: %@", __PRETTY_FUNCTION__, checkURL);
-            return checkURL;
+            APLog(@"%s:found matching spu file: %@", __PRETTY_FUNCTION__, matchedURL);
+            break;
         }
     }
-    return nil;
+
+    if (matchedURL) {
+        [[VLCPlaybackService sharedInstance] addSubtitlesToCurrentPlaybackFromURL:matchedURL];
+    }
 }
 
 - (NSData *)sendSynchronousRequest:(NSURLRequest *)request returningResponse:(NSURLResponse **)response error:(NSError **)error
 {
     NSError __block *erreur = NULL;
     NSData __block *data;
-    BOOL __block reqProcessed = false;
     NSURLResponse __block *urlResponse;
+    dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
 
     [[[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData * _Nullable _data, NSURLResponse * _Nullable _response, NSError * _Nullable _error) {
         urlResponse = _response;
         erreur = _error;
         data = _data;
-        reqProcessed = true;
+        dispatch_semaphore_signal(semaphore);
     }] resume];
-
-    while (!reqProcessed) {
-        [NSThread sleepForTimeInterval:0];
-    }
+    dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
 
     *response = urlResponse;
     *error = erreur;

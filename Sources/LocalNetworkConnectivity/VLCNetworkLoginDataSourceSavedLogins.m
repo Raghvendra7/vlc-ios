@@ -90,6 +90,11 @@ static NSString *const VLCNetworkLoginSavedLoginCellIdentifier = @"VLCNetworkLog
 
 - (void)ubiquitousKeyValueStoreDidChange:(NSNotification *)notification
 {
+    if (![NSThread isMainThread]) {
+        [self performSelectorOnMainThread:@selector(ubiquitousKeyValueStoreDidChange:) withObject:notification waitUntilDone:NO];
+        return;
+    }
+
     /* TODO: don't blindly trust that the Cloud knows best */
     _serverList = [NSMutableArray arrayWithArray:[[NSUbiquitousKeyValueStore defaultStore] arrayForKey:kVLCStoredServerList]];
     // TODO: Vincent: array diff with insert and delete
@@ -199,11 +204,17 @@ static NSString *const VLCNetworkLoginSavedLoginCellIdentifier = @"VLCNetworkLog
 {
     self = [super initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:reuseIdentifier];
     if (self) {
-        self.textLabel.textColor = PresentationTheme.current.colors.cellTextColor;
-        self.detailTextLabel.textColor = PresentationTheme.current.colors.lightTextColor;
-        self.backgroundColor = PresentationTheme.current.colors.background;
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(themeDidChange) name:kVLCThemeDidChangeNotification object:nil];
+        [self themeDidChange];
     }
     return self;
+}
+
+- (void)themeDidChange
+{
+    self.backgroundColor = PresentationTheme.current.colors.background;
+    self.textLabel.textColor = PresentationTheme.current.colors.cellTextColor;
+    self.detailTextLabel.textColor = PresentationTheme.current.colors.lightTextColor;
 }
 
 @end

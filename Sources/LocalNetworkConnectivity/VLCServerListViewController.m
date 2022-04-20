@@ -1,8 +1,8 @@
 /*****************************************************************************
- * VLCLocalServerListViewController.m
+ * VLCServerListViewController.m
  * VLC for iOS
  *****************************************************************************
- * Copyright (c) 2013-2018 VideoLAN. All rights reserved.
+ * Copyright (c) 2013-2020 VideoLAN. All rights reserved.
  * $Id$
  *
  * Authors: Felix Paul Kühne <fkuehne # videolan.org>
@@ -18,30 +18,35 @@
 #import "VLCServerListViewController.h"
 #import "VLCLocalServerDiscoveryController.h"
 
-#import "VLCPlaybackController.h"
+#import "VLCPlaybackService.h"
 #import "VLCNetworkListCell.h"
 #import "VLCNetworkLoginViewController.h"
 #import "VLCNetworkServerBrowserViewController.h"
 
 #import "VLCNetworkServerLoginInformation+Keychain.h"
 
-#import "VLCNetworkServerBrowserFTP.h"
 #import "VLCNetworkServerBrowserVLCMedia.h"
 #import "VLCNetworkServerBrowserPlex.h"
 
-#import "VLCLocalNetworkServiceBrowserPlex.h"
-#import "VLCLocalNetworkServiceBrowserFTP.h"
 #import "VLCLocalNetworkServiceBrowserUPnP.h"
+#import "VLCLocalNetworkServiceBrowserPlex.h"
 #import "VLCLocalNetworkServiceBrowserHTTP.h"
-#import "VLCLocalNetworkServiceBrowserSAP.h"
 #import "VLCLocalNetworkServiceBrowserDSM.h"
+#import "VLCNetworkServerBrowserVLCMedia+FTP.h"
+#import "VLCNetworkServerBrowserVLCMedia+SFTP.h"
+#import "VLCLocalNetworkServiceBrowserNFS.h"
 #import "VLCLocalNetworkServiceBrowserBonjour.h"
 
 #import "VLCWiFiUploadTableViewCell.h"
 
+#import "VLCBoxController.h"
+#import <OneDriveSDK.h>
+#import "VLCOneDriveConstants.h"
+#import "VLCDropboxConstants.h"
+
 #import "VLC-Swift.h"
 
-@interface VLCServerListViewController () <UITableViewDataSource, UITableViewDelegate, VLCLocalServerDiscoveryControllerDelegate, VLCNetworkLoginViewControllerDelegate, VLCRemoteNetworkDataSourceDelegate, VLCFileServerViewDelegate>
+@interface VLCServerListViewController () <UITableViewDataSource, UITableViewDelegate, UIDocumentPickerDelegate, VLCLocalServerDiscoveryControllerDelegate, VLCNetworkLoginViewControllerDelegate, VLCRemoteNetworkDataSourceDelegate, VLCFileServerViewDelegate>
 {
     VLCLocalServerDiscoveryController *_discoveryController;
 
@@ -59,10 +64,30 @@
 
 @implementation VLCServerListViewController
 
+#if TARGET_OS_IOS
+- (void)traitCollectionDidChange:(UITraitCollection *)previousTraitCollection
+{
+    [super traitCollectionDidChange:previousTraitCollection];
+
+    /* the event handler in TabBarCoordinator cannot listen to the system because the movie view controller blocks the event
+     * Therefore, we need to check the current theme ourselves */
+    if (@available(iOS 13.0, *)) {
+        if (previousTraitCollection.userInterfaceStyle == self.traitCollection.userInterfaceStyle) {
+            return;
+        }
+
+        if ([[NSUserDefaults standardUserDefaults] integerForKey:kVLCSettingAppTheme] == kVLCSettingAppThemeSystem) {
+            [PresentationTheme themeDidUpdate];
+        }
+        [self themeDidChange];
+    }
+}
+
+#endif
+
 - (instancetype)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
 {
     self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
-
     if (self) {
         [self setupUI];
     }
@@ -72,6 +97,7 @@
 - (void)loadView
 {
     [super loadView];
+    [self configureCloudControllers];
 
     _scrollView = [[UIScrollView alloc] init];
     _scrollView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -96,6 +122,7 @@
     _localNetworkTableView.separatorStyle = UITableViewCellSeparatorStyleNone;
     _localNetworkTableView.rowHeight = [VLCNetworkListCell heightOfCell];
     _localNetworkTableView.separatorStyle = UITableViewCellSeparatorStyleNone;
+    _localNetworkTableView.estimatedRowHeight = [VLCNetworkListCell heightOfCell];
 
     [self.navigationController.navigationBar setTranslucent:NO];
     self.navigationController.view.backgroundColor = PresentationTheme.current.colors.background;
@@ -115,6 +142,7 @@
 
     [_remoteNetworkTableView registerClass:[VLCWiFiUploadTableViewCell class] forCellReuseIdentifier:[VLCWiFiUploadTableViewCell cellIdentifier]];
     [_remoteNetworkTableView registerClass:[VLCRemoteNetworkCell class] forCellReuseIdentifier:VLCRemoteNetworkCell.cellIdentifier];
+    [_remoteNetworkTableView registerClass:[VLCExternalMediaProviderCell class] forCellReuseIdentifier:VLCExternalMediaProviderCell.cellIdentifier];
 
     _refreshControl = [[UIRefreshControl alloc] init];
     _refreshControl.backgroundColor = PresentationTheme.current.colors.background;
@@ -166,19 +194,23 @@
 {
     [super viewDidLoad];
 
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(themeDidChange) name:kVLCThemeDidChangeNotification object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(contentSizeDidChange) name:UIContentSizeCategoryDidChangeNotification object:nil];
+    NSNotificationCenter *notificationCenter = [NSNotificationCenter defaultCenter];
+    [notificationCenter addObserver:self selector:@selector(themeDidChange) name:kVLCThemeDidChangeNotification object:nil];
+    [notificationCenter addObserver:self selector:@selector(contentSizeDidChange) name:UIContentSizeCategoryDidChangeNotification object:nil];
+    [notificationCenter addObserver:self selector:@selector(boxSessionUpdated) name:VLCBoxControllerSessionUpdated object:nil];
+    [notificationCenter addObserver:self selector:@selector(miniPlayerIsShown)
+                               name:VLCPlayerDisplayControllerDisplayMiniPlayer object:nil];
+    [notificationCenter addObserver:self selector:@selector(miniPlayerIsHidden)
+                               name:VLCPlayerDisplayControllerHideMiniPlayer object:nil];
 
+    [self themeDidChange];
     NSArray *browserClasses = @[
                                 [VLCLocalNetworkServiceBrowserUPnP class],
                                 [VLCLocalNetworkServiceBrowserPlex class],
-                                [VLCLocalNetworkServiceBrowserFTP class],
                                 [VLCLocalNetworkServiceBrowserHTTP class],
-#ifndef NDEBUG
-                                [VLCLocalNetworkServiceBrowserSAP class],
-#endif
                                 [VLCLocalNetworkServiceBrowserDSM class],
                                 [VLCLocalNetworkServiceBrowserBonjour class],
+                                [VLCLocalNetworkServiceBrowserNFS class],
                                 ];
 
     _discoveryController = [[VLCLocalServerDiscoveryController alloc] initWithServiceBrowserClasses:browserClasses];
@@ -200,6 +232,20 @@
     if (@available(iOS 11.0, *)) {
         self.navigationController.navigationBar.prefersLargeTitles = YES;
     }
+    VLCPlaybackService.sharedInstance.playerDisplayController.isMiniPlayerVisible
+    ? [self miniPlayerIsShown] : [self miniPlayerIsHidden];
+    [_remoteNetworkTableView reloadData];
+}
+
+- (void)miniPlayerIsShown
+{
+    _localNetworkTableView.contentInset = UIEdgeInsetsMake(0, 0,
+                                                           VLCAudioMiniPlayer.height, 0);
+}
+
+- (void)miniPlayerIsHidden
+{
+    _localNetworkTableView.contentInset = UIEdgeInsetsMake(0, 0, 0, 0);
 }
 
 - (BOOL)shouldAutorotate
@@ -233,6 +279,29 @@
         loginViewController.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:NSLocalizedString(@"BUTTON_CANCEL", nil) style:UIBarButtonItemStylePlain target:self action:@selector(_dismissLogin)];
 }
 
+- (void)configureCloudControllers
+{
+    VLCBoxController *boxController = [VLCBoxController sharedInstance];
+    // Start Box session on init to check whether it is logged in or not as soon as possible
+    [boxController startSession];
+
+    // Configure Dropbox
+    [DBClientsManager setupWithAppKey:kVLCDropboxAppKey];
+
+    // Configure OneDrive
+    [ODClient setMicrosoftAccountAppId:kVLCOneDriveClientID scopes:@[@"onedrive.readwrite", @"offline_access"]];
+}
+
+- (void)boxSessionUpdated
+{
+    __weak typeof(self) weakSelf = self;
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf->_remoteNetworkTableView reloadData];
+    });
+}
+
 #pragma mark - table view handling
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
@@ -247,10 +316,9 @@
 
 - (void)tableView:(UITableView *)tableView willDisplayCell:(VLCNetworkListCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath
 {
-    UIColor *color = PresentationTheme.current.colors.cellBackgroundA;
-    cell.backgroundColor = cell.titleLabel.backgroundColor = cell.folderTitleLabel.backgroundColor = cell.subtitleLabel.backgroundColor = color;
-    cell.titleLabel.textColor = cell.folderTitleLabel.textColor = cell.thumbnailView.tintColor = PresentationTheme.current.colors.cellTextColor;
-    cell.subtitleLabel.textColor = PresentationTheme.current.colors.cellDetailTextColor;
+    ColorPalette *themeColors = PresentationTheme.current.colors;
+    cell.titleLabel.textColor = cell.folderTitleLabel.textColor = cell.thumbnailView.tintColor = themeColors.cellTextColor;
+    cell.subtitleLabel.textColor = themeColors.cellDetailTextColor;
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
@@ -264,7 +332,11 @@
     id<VLCLocalNetworkService> service = [_discoveryController networkServiceForIndexPath:indexPath];
 
     [cell setIsDirectory:YES];
-    [cell setIcon:service.icon];
+    if ([service respondsToSelector:@selector(iconURL)]) {
+        [cell setIconURL:service.iconURL];
+    }
+    if (cell.iconURL == nil)
+        [cell setIcon:service.icon];
     [cell setTitle:service.title];
     [cell setTitleLabelCentered:NO];
     [cell setSubtitle:service.serviceName];
@@ -290,10 +362,9 @@
     if ([service respondsToSelector:@selector(directPlaybackURL)]) {
         NSURL *playbackURL = [service directPlaybackURL];
         if (playbackURL) {
-
             VLCMediaList *medialist = [[VLCMediaList alloc] init];
             [medialist addMedia:[VLCMedia mediaWithURL:playbackURL]];
-            [[VLCPlaybackController sharedInstance] playMediaList:medialist firstIndex:0 subtitlesFilePath:nil];
+            [[VLCPlaybackService sharedInstance] playMediaList:medialist firstIndex:0 subtitlesFilePath:nil];
             return;
         }
     }
@@ -301,6 +372,16 @@
     VLCNetworkServerLoginInformation *login;
     if ([service respondsToSelector:@selector(loginInformation)]) {
         login = [service loginInformation];
+    } else {
+        APLog(@"%s: no login information, class %@", __func__, NSStringFromClass([service class]));
+    }
+
+    /* UPnP does not support authentication, so skip this step */
+    if ([login.protocolIdentifier isEqualToString:VLCNetworkServerProtocolIdentifierUPnP]) {
+        VLCNetworkServerBrowserVLCMedia *serverBrowser = [VLCNetworkServerBrowserVLCMedia UPnPNetworkServerBrowserWithLogin:login];
+        VLCNetworkServerBrowserViewController *vc = [[VLCNetworkServerBrowserViewController alloc] initWithServerBrowser:serverBrowser];
+        [self.navigationController pushViewController:vc animated:YES];
+        return;
     }
 
     [login loadLoginInformationFromKeychainWithError:nil];
@@ -315,8 +396,13 @@
         navCon.modalPresentationStyle = UIModalPresentationFormSheet;
         [self presentViewController:navCon animated:YES completion:nil];
 
-        if (loginViewController.navigationItem.leftBarButtonItem == nil)
-            loginViewController.navigationItem.leftBarButtonItem = [UIBarButtonItem themedDarkToolbarButtonWithTitle:NSLocalizedString(@"BUTTON_CANCEL", nil) target:self andSelector:@selector(_dismissLogin)];
+        if (loginViewController.navigationItem.leftBarButtonItem == nil) {
+            loginViewController.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc]
+                                                                    initWithTitle:NSLocalizedString(@"BUTTON_CANCEL", nil)
+                                                                    style:UIBarButtonItemStylePlain
+                                                                    target:self
+                                                                    action:@selector(_dismissLogin)];
+        }
     } else {
         [self.navigationController pushViewController:loginViewController animated:YES];
     }
@@ -325,6 +411,12 @@
 - (void)showViewController:(UIViewController *)viewController
 {
     [self.navigationController pushViewController:viewController animated:YES];
+}
+
+- (void)showDocumentPickerViewController:(UIDocumentPickerViewController *)viewControllerToPresent
+{
+    viewControllerToPresent.delegate = self;
+    [self presentViewController:viewControllerToPresent animated:YES completion:nil];
 }
 
 #pragma mark -
@@ -336,6 +428,11 @@
     _localNetworkTableView.separatorColor = PresentationTheme.current.colors.background;
     _refreshControl.backgroundColor = PresentationTheme.current.colors.background;
     self.navigationController.view.backgroundColor = PresentationTheme.current.colors.background;
+    if (@available(iOS 13.0, *)) {
+        UINavigationBarAppearance *navigationBarAppearance = [VLCAppearanceManager navigationbarAppearance];
+        self.navigationController.navigationBar.standardAppearance = navigationBarAppearance;
+        self.navigationController.navigationBar.scrollEdgeAppearance = navigationBarAppearance;
+    }
     [self setNeedsStatusBarAppearanceUpdate];
 }
 
@@ -381,16 +478,18 @@
     NSString *identifier = loginInformation.protocolIdentifier;
 
     if ([identifier isEqualToString:VLCNetworkServerProtocolIdentifierFTP]) {
-        serverBrowser = [[VLCNetworkServerBrowserFTP alloc] initWithLogin:loginInformation];
+        serverBrowser = [VLCNetworkServerBrowserVLCMedia FTPNetworkServerBrowserWithLogin:loginInformation];
     } else if ([identifier isEqualToString:VLCNetworkServerProtocolIdentifierPlex]) {
         serverBrowser = [[VLCNetworkServerBrowserPlex alloc] initWithLogin:loginInformation];
     } else if ([identifier isEqualToString:VLCNetworkServerProtocolIdentifierSMB]) {
         serverBrowser = [VLCNetworkServerBrowserVLCMedia SMBNetworkServerBrowserWithLogin:loginInformation];
+    } else if ([identifier isEqualToString:VLCNetworkServerProtocolIdentifierNFS]) {
+        serverBrowser = [VLCNetworkServerBrowserVLCMedia NFSNetworkServerBrowserWithLogin:loginInformation];
+    } else if ([identifier isEqualToString:VLCNetworkServerProtocolIdentifierSFTP]) {
+        serverBrowser = [VLCNetworkServerBrowserVLCMedia SFTPNetworkServerBrowserWithLogin:loginInformation];
     } else {
         APLog(@"Unsupported URL Scheme requested %@", identifier);
     }
-
-    [self _dismissLogin];
 
     if (serverBrowser) {
         VLCNetworkServerBrowserViewController *targetViewController = [[VLCNetworkServerBrowserViewController alloc] initWithServerBrowser:serverBrowser];
@@ -403,6 +502,18 @@
     [_localNetworkTableView reloadData];
     [_localNetworkTableView layoutIfNeeded];
     _localNetworkHeight.constant = _localNetworkTableView.contentSize.height;
+}
+
+#pragma mark - UIDocumentPickerDelegate
+
+- (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentAtURL:(NSURL *)url
+{
+    if (url && [url startAccessingSecurityScopedResource]) {
+        VLCMediaList *medialist = [[VLCMediaList alloc] init];
+        [medialist addMedia:[VLCMedia mediaWithURL:url]];
+        [[VLCPlaybackService sharedInstance] playMediaList:medialist firstIndex:0 subtitlesFilePath:nil];
+        [[VLCPlaybackService sharedInstance].openedLocalURLs addObject:url];
+    }
 }
 
 @end

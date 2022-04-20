@@ -50,7 +50,6 @@ static NSString *const VLCLocalNetworkServiceDSMWorkgroupIdentifier = @"VLCLocal
 
 @implementation VLCLocalNetworkServiceDSM
 
-
 + (void)registerLoginInformation
 {
     VLCNetworkServerLoginInformation *login = [[VLCNetworkServerLoginInformation alloc] init];
@@ -65,9 +64,6 @@ static NSString *const VLCLocalNetworkServiceDSMWorkgroupIdentifier = @"VLCLocal
     [VLCNetworkServerLoginInformation registerTemplateLoginInformation:login];
 }
 
-- (UIImage *)icon {
-    return [UIImage imageNamed:@"serverIcon"];
-}
 - (VLCNetworkServerLoginInformation *)loginInformation {
 
     VLCMedia *media = self.mediaItem;
@@ -86,9 +82,9 @@ static NSString *const VLCLocalNetworkServiceDSMWorkgroupIdentifier = @"VLCLocal
 
 + (instancetype)SMBNetworkServerBrowserWithLogin:(VLCNetworkServerLoginInformation *)login
 {
-    NSURLComponents *components = [[NSURLComponents alloc] init];
+    NSString *path = [NSString stringWithFormat:@"//%@", login.address];
+    NSURLComponents *components = [[NSURLComponents alloc] initWithString:path];
     components.scheme = @"smb";
-    components.host = login.address;
     components.port = login.port;
     NSURL *url = components.URL;
 
@@ -109,9 +105,14 @@ static NSString *const VLCLocalNetworkServiceDSMWorkgroupIdentifier = @"VLCLocal
 + (instancetype)SMBNetworkServerBrowserWithURL:(NSURL *)url username:(NSString *)username password:(NSString *)password workgroup:(NSString *)workgroup
 {
 	VLCMedia *media = [VLCMedia mediaWithURL:url];
-	NSDictionary *mediaOptions = @{@"smb-user" : username ?: @"",
-								   @"smb-pwd" : password ?: @"",
-								   @"smb-domain" : workgroup?: @"WORKGROUP"};
+	NSMutableDictionary *mediaOptions = @{
+        @"smb-user" : username ?: @"",
+        @"smb-pwd" : password ?: @"",
+        @"smb-domain" : workgroup?: @"WORKGROUP",
+    }.mutableCopy;
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:kVLCForceSMBV1]) {
+        mediaOptions[kVLCForceSMBV1] = [NSNull null];
+    }
 	[media addOptions:mediaOptions];
 	return [[self alloc] initWithMedia:media options:mediaOptions];
 }

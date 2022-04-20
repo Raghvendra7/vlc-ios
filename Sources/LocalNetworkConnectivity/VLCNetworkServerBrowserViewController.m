@@ -16,8 +16,7 @@
 #import "VLCNetworkListCell.h"
 #import "VLCActivityManager.h"
 #import "VLCStatusLabel.h"
-#import "VLCPlaybackController.h"
-#import "VLCDownloadViewController.h"
+#import "VLCPlaybackService.h"
 
 #import "VLCNetworkServerBrowser-Protocol.h"
 #import "VLCServerBrowsingController.h"
@@ -51,7 +50,7 @@
     [super viewDidLoad];
 
     _refreshControl = [[UIRefreshControl alloc] init];
-    _refreshControl.tintColor = [UIColor VLCOrangeTintColor];
+    _refreshControl.tintColor = PresentationTheme.current.colors.orangeUI;
     [_refreshControl addTarget:self action:@selector(handleRefresh) forControlEvents:UIControlEventValueChanged];
     if (@available(iOS 10, *)) {
         self.tableView.refreshControl = _refreshControl;
@@ -60,7 +59,12 @@
     }
 
     self.tableView.backgroundColor = PresentationTheme.current.colors.background;
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(themeDidChange) name:kVLCThemeDidChangeNotification object:nil];
+    NSNotificationCenter *notificationCenter = [NSNotificationCenter defaultCenter];
+    [notificationCenter addObserver:self selector:@selector(themeDidChange) name:kVLCThemeDidChangeNotification object:nil];
+    [notificationCenter addObserver:self selector:@selector(miniPlayerIsShown)
+                               name:VLCPlayerDisplayControllerDisplayMiniPlayer object:nil];
+    [notificationCenter addObserver:self selector:@selector(miniPlayerIsHidden)
+                               name:VLCPlayerDisplayControllerHideMiniPlayer object:nil];
 
     self.title = self.serverBrowser.title;
     [self update];
@@ -69,7 +73,20 @@
 - (void)viewWillAppear:(BOOL)animated
 {
     [super viewWillAppear:animated];
+    VLCPlaybackService.sharedInstance.playerDisplayController.isMiniPlayerVisible
+    ? [self miniPlayerIsShown] : [self miniPlayerIsHidden];
     [self updateUI];
+}
+
+- (void)miniPlayerIsShown
+{
+    self.tableView.contentInset = UIEdgeInsetsMake(0, 0,
+                                                   VLCAudioMiniPlayer.height, 0);
+}
+
+- (void)miniPlayerIsHidden
+{
+    self.tableView.contentInset = UIEdgeInsetsMake(0, 0, 0, 0);
 }
 
 - (void)networkServerBrowserDidUpdate:(id<VLCNetworkServerBrowser>)networkBrowser
@@ -77,6 +94,16 @@
     [self updateUI];
     [[VLCActivityManager defaultManager] networkActivityStopped];
     [_refreshControl endRefreshing];
+}
+
+- (void)networkServerBrowserShouldPopView:(id<VLCNetworkServerBrowser>)networkBrowser
+{
+    [self.navigationController popViewControllerAnimated:YES];
+}
+
+- (void)networkServerBrowserEndParsing:(id<VLCNetworkServerBrowser>)networkBrowser
+{
+    [self stopActivityIndicator];
 }
 
 - (void)networkServerBrowser:(id<VLCNetworkServerBrowser>)networkBrowser requestDidFailWithError:(NSError *)error
@@ -120,8 +147,17 @@
             [self.browsingController streamFileForItem:item];
         } else {
             VLCMediaList *mediaList = self.serverBrowser.mediaList;
-            [self.browsingController configureSubtitlesInMediaList:mediaList];
-            [self.browsingController streamMediaList:mediaList startingAtIndex:index];
+            VLCMediaList *mediaListToPlay = [[VLCMediaList alloc] init];
+            for (NSInteger i = 0; i < [mediaList count]; ++i) {
+                VLCMedia *media = [mediaList mediaAtIndex:i];
+                if (media.mediaType != VLCMediaTypeDirectory) {
+                    [mediaListToPlay addMedia:media];
+                }
+            }
+            [self.browsingController configureSubtitlesInMediaList:mediaListToPlay];
+
+            NSUInteger indexToPlay = [mediaListToPlay indexOfMedia:[mediaList mediaAtIndex:index]];
+            [self.browsingController streamMediaList:mediaListToPlay startingAtIndex:indexToPlay];
         }
     }
 }
@@ -184,7 +220,6 @@
     if([indexPath row] == ((NSIndexPath*)[[tableView indexPathsForVisibleRows] lastObject]).row)
         [[VLCActivityManager defaultManager] networkActivityStopped];
 
-    cell.backgroundColor = cell.titleLabel.backgroundColor = cell.folderTitleLabel.backgroundColor = cell.subtitleLabel.backgroundColor = PresentationTheme.current.colors.cellBackgroundA;
     cell.titleLabel.textColor = cell.folderTitleLabel.textColor = cell.subtitleLabel.textColor = cell.thumbnailView.tintColor = PresentationTheme.current.colors.cellTextColor;
 }
 

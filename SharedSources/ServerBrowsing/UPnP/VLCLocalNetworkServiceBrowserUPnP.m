@@ -2,134 +2,110 @@
  * VLCLocalNetworkServiceBrowserUPnP.m
  * VLC for iOS
  *****************************************************************************
- * Copyright (c) 2015 VideoLAN. All rights reserved.
+ * Copyright (c) 2015, 2020 VideoLAN. All rights reserved.
  * $Id$
  *
  * Authors: Tobias Conradi <videolan # tobias-conradi.de>
+ *          Felix Paul Kühne <fkuehne # videolan.org>
  *
  * Refer to the COPYING file of the official project for license.
  *****************************************************************************/
+
 #import "VLCLocalNetworkServiceBrowserUPnP.h"
-#import "VLCLocalNetworkServiceUPnP.h"
+#import "VLCNetworkServerLoginInformation.h"
 
-#import "UPnPManager.h"
-
-@interface VLCLocalNetworkServiceBrowserUPnP () <UPnPDBObserver>{
-    BOOL _udnpDiscoveryRunning;
-    NSTimer *_searchTimer;
-    BOOL _setup;
-}
-@property (nonatomic) NSArray<VLCLocalNetworkServiceUPnP*> *filteredUPNPDevices;
-@property (nonatomic) NSArray *UPNPdevices;
+@interface VLCLocalNetworkServiceUPnP ()
++ (void)registerLoginInformation;
 @end
 
 @implementation VLCLocalNetworkServiceBrowserUPnP
-@synthesize name = _name, delegate = _delegate;
 
-
-- (instancetype)init
-{
-    self = [super init];
-    if (self) {
+- (instancetype)init {
 #if TARGET_OS_TV
-        _name = NSLocalizedString(@"UPNP_SHORT", nil);
+    NSString *name = NSLocalizedString(@"UPNP_SHORT", nil);
 #else
-        _name = NSLocalizedString(@"UPNP_LONG", nil);
+    NSString *name = NSLocalizedString(@"UPNP_LONG", nil);
 #endif
-    }
-    return self;
-}
 
-#pragma mark - VLCLocalNetworkServiceBrowser Protocol
-- (NSUInteger)numberOfItems {
-    return _filteredUPNPDevices.count;
+    return [super initWithName:name
+            serviceServiceName:@"upnp"];
 }
-
 - (id<VLCLocalNetworkService>)networkServiceForIndex:(NSUInteger)index {
-    if (index < _filteredUPNPDevices.count)
-        return _filteredUPNPDevices[index];
+    VLCMedia *media = [self.mediaDiscoverer.discoveredMedia mediaAtIndex:index];
+    if (media)
+        return [[VLCLocalNetworkServiceUPnP alloc] initWithMediaItem:media serviceName:self.name];
     return nil;
 }
 
-- (void)startDiscovery {
-    [self _startUPNPDiscovery];
-}
-- (void)stopDiscovery {
-    [self _stopUPNPDiscovery];
-}
-
-#pragma mark -
-
-#pragma mark - UPNP discovery
-- (void)_startUPNPDiscovery
++ (void)initialize
 {
-    UPnPManager *managerInstance = [UPnPManager GetInstance];
-    _UPNPdevices = [[managerInstance DB] rootDevices];
+    [super initialize];
+    [VLCLocalNetworkServiceUPnP registerLoginInformation];
+}
 
-    if (_UPNPdevices.count > 0)
-        [self UPnPDBUpdated:nil];
+@end
 
-    [[managerInstance DB] addObserver:self];
 
-    //Optional; set User Agent
-    if (!_setup) {
-        [[managerInstance SSDP] setUserAgentProduct:[NSString stringWithFormat:@"VLCforiOS/%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"]] andOS:[NSString stringWithFormat:@"iOS/%@", [[UIDevice currentDevice] systemVersion]]];
-        _setup = YES;
+NSString *const VLCNetworkServerProtocolIdentifierUPnP = @"upnp";
+
+@implementation VLCLocalNetworkServiceUPnP
+
++ (void)registerLoginInformation
+{
+    VLCNetworkServerLoginInformation *login = [[VLCNetworkServerLoginInformation alloc] init];
+    login.protocolIdentifier = VLCNetworkServerProtocolIdentifierUPnP;
+
+    [VLCNetworkServerLoginInformation registerTemplateLoginInformation:login];
+}
+
+- (VLCNetworkServerLoginInformation *)loginInformation {
+
+    VLCMedia *media = self.mediaItem;
+    if (media.mediaType != VLCMediaTypeDirectory)
+        return nil;
+
+    VLCNetworkServerLoginInformation *login = [VLCNetworkServerLoginInformation newLoginInformationForProtocol:VLCNetworkServerProtocolIdentifierUPnP];
+    login.address = self.mediaItem.url.absoluteString;
+
+    /* SAT>IP needs the host address of the UPnP server set as an option as
+     * when using a generic playlist, the host address will be 'sat.ip' and
+     * playback will fail.
+     * According to section 3.4.1 of the SAT>IP specification, it is
+     * required to provide an icon for a SAT>IP server via UPnP, so it is
+     * safe to query for the actual host address as the media's URL will
+     * point to the generic playlist. */
+    NSString *artworkString = [media metadataForKey:VLCMetaInformationArtworkURL];
+    if (artworkString) {
+        NSURL *url = [NSURL URLWithString:artworkString];
+        NSString *host = url.host;
+
+        if (host) {
+            NSDictionary *dict = @{ @"satip-host" : host };
+            login.options = dict;
+        }
     }
 
-    //Search for UPnP Devices
-    [[managerInstance SSDP] startSSDP];
-    [[managerInstance SSDP] notifySSDPAlive];
-
-    _searchTimer = [[NSTimer alloc] initWithFireDate:[NSDate dateWithTimeIntervalSinceNow:1.0] interval:10.0 target:self selector:@selector(_performSSDPSearch) userInfo:nil repeats:YES];
-    [[NSRunLoop mainRunLoop] addTimer:_searchTimer forMode:NSRunLoopCommonModes];
-    _udnpDiscoveryRunning = YES;
+    return login;
 }
 
-- (void)_performSSDPSearch
-{
-    UPnPManager *managerInstance = [UPnPManager GetInstance];
-    [[managerInstance SSDP] searchSSDP];
-    [[managerInstance SSDP] searchForMediaServer];
-    [[managerInstance SSDP] performSelectorInBackground:@selector(SSDPDBUpdate) withObject:nil];
-}
+@end
 
-- (void)_stopUPNPDiscovery
+
+@implementation VLCNetworkServerBrowserVLCMedia (UPnP)
+
++ (instancetype)UPnPNetworkServerBrowserWithLogin:(VLCNetworkServerLoginInformation *)login
 {
-    if (_udnpDiscoveryRunning) {
-        UPnPManager *managerInstance = [UPnPManager GetInstance];
-        [[managerInstance SSDP] notifySSDPByeBye];
-        [_searchTimer invalidate];
-        _searchTimer = nil;
-        [[managerInstance DB] removeObserver:self];
-        [[managerInstance SSDP] stopSSDP];
-        _udnpDiscoveryRunning = NO;
+    NSURL *url = [NSURL URLWithString:login.address];
+    NSDictionary *options = login.options;
+    if (!options) {
+        options = @{};
     }
+    return [self UPnPNetworkServerBrowserWithURL:url options:options];
 }
 
-#pragma mark - UPnPDBObserver protocol
-- (void)UPnPDBWillUpdate:(UPnPDB*)sender
++ (instancetype)UPnPNetworkServerBrowserWithURL:(NSURL *)url options:(NSDictionary *)mediaOptions
 {
+	VLCMedia *media = [VLCMedia mediaWithURL:url];
+	return [[self alloc] initWithMedia:media options:mediaOptions];
 }
-
-- (void)UPnPDBUpdated:(UPnPDB*)sender
-{
-    NSUInteger count = _UPNPdevices.count;
-    BasicUPnPDevice *device;
-    NSMutableArray<VLCLocalNetworkServiceUPnP*> *mutArray = [[NSMutableArray alloc] init];
-    for (NSUInteger x = 0; x < count; x++) {
-        device = _UPNPdevices[x];
-        if ([[device urn] isEqualToString:@"urn:schemas-upnp-org:device:MediaServer:1"])
-            [mutArray addObject:[[VLCLocalNetworkServiceUPnP alloc] initWithUPnPDevice:device serviceName:self.name]];
-        else
-            APLog(@"found device '%@' with unsupported urn '%@'", [device friendlyName], [device urn]);
-    }
-    _filteredUPNPDevices = nil;
-    _filteredUPNPDevices = [NSArray arrayWithArray:mutArray];
-
-    [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-        [self.delegate localNetworkServiceBrowserDidUpdateServices:self];
-    }];
-}
-
 @end

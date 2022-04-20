@@ -11,6 +11,7 @@
  *****************************************************************************/
 
 #import "VLCSlider.h"
+#import "VLC-Swift.h"
 
 @implementation VLCOBSlider
 

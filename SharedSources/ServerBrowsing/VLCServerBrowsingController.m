@@ -1,7 +1,7 @@
 /*****************************************************************************
  * VLC for iOS
  *****************************************************************************
- * Copyright (c) 2015-2018 VideoLAN. All rights reserved.
+ * Copyright (c) 2015-2018, 2021 VideoLAN. All rights reserved.
  * $Id$
  *
  * Authors: Tobias Conradi <videolan # tobias-conradi.de>
@@ -12,18 +12,21 @@
  *****************************************************************************/
 
 #import "VLCServerBrowsingController.h"
+#import "VLCNetworkServerBrowserVLCMedia.h"
 #import "NSString+SupportedMedia.h"
-#import "UIDevice+VLC.h"
+#import "VLC-Swift.h"
 
-#import "VLCPlaybackController.h"
+#import "VLCPlaybackService.h"
 
 #if TARGET_OS_TV
 #import "VLCFullscreenMovieTVViewController.h"
 #import "MetaDataFetcherKit.h"
+#else
+#import "VLCNetworkListCell.h"
 #endif
 
 #if DOWNLOAD_SUPPORTED
-#import "VLCDownloadViewController.h"
+#import "VLCDownloadController.h"
 #endif
 
 @implementation VLCServerBrowsingController
@@ -97,6 +100,11 @@
             subtitle = duration;
         }
         cell.subtitle = subtitle;
+#if TARGET_OS_IOS
+        if ([cell isKindOfClass:[VLCNetworkListCell class]] && subtitle == nil) {
+            [(VLCNetworkListCell *)cell setTitleLabelCentered:YES];
+        }
+#endif
 #if DOWNLOAD_SUPPORTED
         if ([item respondsToSelector:@selector(isDownloadable)])
             cell.isDownloadable = item.isDownloadable;
@@ -164,6 +172,10 @@
 
 - (void)configureSubtitlesInMediaList:(VLCMediaList *)mediaList
 {
+    if ([self.serverBrowser isKindOfClass:[VLCNetworkServerBrowserVLCMedia class]]) {
+        return;
+    }
+
     NSArray *items = self.serverBrowser.items;
     id<VLCNetworkServerBrowserItem> loopItem;
     [mediaList lock];
@@ -203,8 +215,7 @@
 
 - (void)streamMediaList:(VLCMediaList *)mediaList startingAtIndex:(NSInteger)startIndex
 {
-    VLCPlaybackController *vpc = [VLCPlaybackController sharedInstance];
-    vpc.fullscreenSessionRequested = YES;
+    VLCPlaybackService *vpc = [VLCPlaybackService sharedInstance];
     [vpc playMediaList:mediaList firstIndex:startIndex subtitlesFilePath:nil];
     [self showMovieViewController];
 }
@@ -224,10 +235,9 @@
     if(remoteSubtitleURL)
         URLofSubtitle = [self _getFileSubtitleFromServer:remoteSubtitleURL];
 
-    VLCPlaybackController *vpc = [VLCPlaybackController sharedInstance];
-    vpc.fullscreenSessionRequested = YES;
+    VLCPlaybackService *vpc = [VLCPlaybackService sharedInstance];
     VLCMediaList *medialist = [[VLCMediaList alloc] init];
-    [medialist addMedia:[VLCMedia mediaWithURL:item.URL]];
+    [medialist addMedia:item.media];
     [vpc playMediaList:medialist firstIndex:0 subtitlesFilePath:URLofSubtitle];
     [self showMovieViewController];
 }
@@ -272,9 +282,23 @@
         NSString *extension = urlExtension.length != 0 ? urlExtension : @"vlc";
         filename = [filename stringByAppendingPathExtension:extension];
     }
-    [[VLCDownloadViewController sharedInstance] addURLToDownloadList:item.URL fileNameOfMedia:filename];
-    if (item.subtitleURL)
-        [self getFileSubtitleFromServer:item];
+
+    VLCMedia *media = item.media;
+    if (media) {
+        NSNumber *fileSizeBytes = item.fileSizeBytes;
+        long long unsigned expectedDownloadSize = fileSizeBytes ? fileSizeBytes.unsignedLongLongValue : 0;
+        [[VLCDownloadController sharedInstance] addVLCMediaToDownloadList:media
+                                                          fileNameOfMedia:filename
+                                                     expectedDownloadSize:expectedDownloadSize];
+    } else {
+        [[VLCDownloadController sharedInstance] addURLToDownloadList:item.URL
+                                                     fileNameOfMedia:filename];
+    }
+    if ([item respondsToSelector:@selector(subtitleURL)]) {
+        if ([item subtitleURL]) {
+            [self getFileSubtitleFromServer:item];
+        }
+    }
 }
 
 - (void)getFileSubtitleFromServer:(id<VLCNetworkServerBrowserItem>)item

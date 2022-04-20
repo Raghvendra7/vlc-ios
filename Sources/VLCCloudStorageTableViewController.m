@@ -17,6 +17,13 @@
 #import "VLCProgressView.h"
 #import "VLC-Swift.h"
 
+typedef NS_ENUM(NSInteger, VLCToolbarStyle) {
+    VLCToolbarStyleNone,
+    VLCToolbarStyleProgress,
+    VLCToolbarStyleSortAndNumOfFiles,
+    VLCToolbarStyleNumOfFiles
+};
+
 @interface VLCCloudStorageTableViewController()
 {
     VLCProgressView *_progressView;
@@ -37,6 +44,7 @@
     [super viewDidLoad];
 
     _authorizationInProgress = NO;
+    ColorPalette *colors = PresentationTheme.current.colors;
 
     self.modalPresentationStyle = UIModalPresentationFormSheet;
 
@@ -46,8 +54,11 @@
     _logoutButton = [[UIBarButtonItem alloc] initWithTitle:NSLocalizedString(@"BUTTON_LOGOUT", "") style:UIBarButtonItemStylePlain target:self action:@selector(logout)];
 
     [self.loginButton setTitle:NSLocalizedString(@"DROPBOX_LOGIN", nil) forState:UIControlStateNormal];
+    [self.loginButton setTitleColor:colors.orangeUI forState:UIControlStateNormal];
 
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(updateForTheme) name:kVLCThemeDidChangeNotification object:nil];
+    NSNotificationCenter *notificationCenter = [NSNotificationCenter defaultCenter];
+    [notificationCenter addObserver:self selector:@selector(updateForTheme) name:kVLCThemeDidChangeNotification object:nil];
+    [notificationCenter addObserver:self selector:@selector(updateForSizing) name:UIContentSizeCategoryDidChangeNotification object:nil];
 
     _refreshControl = [[UIRefreshControl alloc] init];
     _refreshControl.tintColor = [UIColor whiteColor];
@@ -61,8 +72,8 @@
     _numberOfFilesBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:[NSString stringWithFormat:NSLocalizedString(@"NUM_OF_FILES", nil), 0] style:UIBarButtonItemStylePlain target:nil action:nil];
     _sortBarButtonItem = [[UIBarButtonItem alloc] initWithTitle: [NSString stringWithFormat:NSLocalizedString(@"SORT", nil), 0]
                                                           style:UIBarButtonItemStylePlain target:self action:@selector(sortButtonClicked:)];
-    _sortBarButtonItem.tintColor = PresentationTheme.current.colors.orangeUI;
-    _numberOfFilesBarButtonItem.tintColor = PresentationTheme.current.colors.orangeUI;
+    _sortBarButtonItem.tintColor = colors.orangeUI;
+    _numberOfFilesBarButtonItem.tintColor = colors.orangeUI;
 
     _activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhiteLarge];
     _activityIndicator.hidesWhenStopped = YES;
@@ -75,9 +86,8 @@
 
     _progressView = [VLCProgressView new];
     _progressBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:_progressView];
-    _progressView.tintColor = PresentationTheme.current.colors.orangeUI;
-    _progressView.progressLabel.textColor = PresentationTheme.current.colors.cellTextColor;
-    
+    _progressView.tintColor = colors.orangeUI;
+
     sheet = [[VLCActionSheet alloc] init];
     manager = [[VLCCloudSortingSpecifierManager alloc] initWithController: self];
     sheet.dataSource = manager;
@@ -85,20 +95,27 @@
     sheet.modalPresentationStyle = UIModalPresentationCustom;
     [sheet.collectionView registerClass:[VLCActionSheetCell class] forCellWithReuseIdentifier:VLCActionSheetCell.identifier];
 
-    [self _showProgressInToolbar:NO];
+    [self updateToolbarWithProgress:nil];
     [self updateForTheme];
 }
 
 - (void)updateForTheme
 {
-    self.tableView.separatorColor = PresentationTheme.current.colors.background;
-    self.tableView.backgroundColor = PresentationTheme.current.colors.background;
-    self.view.backgroundColor = PresentationTheme.current.colors.background;
-    _refreshControl.backgroundColor = PresentationTheme.current.colors.background;
+    ColorPalette *colors = PresentationTheme.current.colors;
+    self.tableView.separatorColor = colors.background;
+    self.tableView.backgroundColor = colors.background;
+    self.view.backgroundColor = colors.background;
+    _refreshControl.backgroundColor = colors.background;
     _activityIndicator.activityIndicatorViewStyle = PresentationTheme.current == PresentationTheme.brightTheme ? UIActivityIndicatorViewStyleGray : UIActivityIndicatorViewStyleWhiteLarge;
-    self.loginToCloudStorageView.backgroundColor = PresentationTheme.current.colors.background;
-    self.navigationController.toolbar.barStyle = PresentationTheme.current.colors.toolBarStyle;
-    _progressView.progressLabel.textColor = PresentationTheme.current.colors.cellTextColor;
+    self.loginToCloudStorageView.backgroundColor = colors.background;
+    self.navigationController.toolbar.barStyle = colors.toolBarStyle;
+    _progressView.progressLabel.textColor = colors.cellTextColor;
+}
+
+- (void)updateForSizing
+{
+    self.tableView.rowHeight = [VLCCloudStorageTableViewCell heightOfCell];
+    [self.tableView reloadData];
 }
 
 - (void)viewWillAppear:(BOOL)animated
@@ -148,6 +165,7 @@
 
     [self.tableView reloadData];
 
+    [self updateToolbarWithProgress:nil];
     NSUInteger count = self.controller.currentListFiles.count;
     if (count == 0)
         self.numberOfFilesBarButtonItem.title = NSLocalizedString(@"NO_FILES", nil);
@@ -157,28 +175,36 @@
         self.numberOfFilesBarButtonItem.title = NSLocalizedString(@"ONE_FILE", nil);
 }
 
-- (NSArray*)_generateToolbarItemsWithSortButton : (BOOL)withsb
-{
-    NSMutableArray* result = [NSMutableArray array];
-    if (withsb)
-    {
-        [result addObjectsFromArray:@[[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil], _sortBarButtonItem]];
+- (void)updateToolbarWithProgress:(NSNumber *)progress {
+    if (progress != nil) {
+        _progressView.progressBar.progress = progress.floatValue;
+        [self updateToolbarWithStyle:VLCToolbarStyleProgress];
+    } else if (!self.controller.isAuthorized) {
+        [self updateToolbarWithStyle:VLCToolbarStyleNone];
+    } else if ([self.controller supportSorting]) {
+        [self updateToolbarWithStyle:VLCToolbarStyleSortAndNumOfFiles];
+    } else {
+        [self updateToolbarWithStyle:VLCToolbarStyleNumOfFiles];
     }
-    [result addObjectsFromArray:@[[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil], _numberOfFilesBarButtonItem, [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil]]];
-    return result;
 }
 
-- (void)_showProgressInToolbar:(BOOL)value
-{
-    if (!value) {
-        [self setToolbarItems:[self _generateToolbarItemsWithSortButton:[self.controller supportSorting]] animated:YES];
-        
+- (void)updateToolbarWithStyle:(VLCToolbarStyle)style {
+    NSMutableArray *items = [NSMutableArray arrayWithObject:[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil]];
+    switch(style) {
+        case VLCToolbarStyleNone:
+            break;
+        case VLCToolbarStyleProgress:
+            [items addObjectsFromArray:@[_progressBarButtonItem, [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil]]];
+            break;
+        case VLCToolbarStyleSortAndNumOfFiles:
+            [items addObjectsFromArray:@[_sortBarButtonItem, [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil]]];
+            // no break to continue to VLCToolbarStyleNumOfFiles
+        case VLCToolbarStyleNumOfFiles:
+            [items addObjectsFromArray:@[_numberOfFilesBarButtonItem, [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil]]];
+            break;
     }
-    else {
-        _progressView.progressBar.progress = 0.;
-        [self setToolbarItems:@[[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil], _progressBarButtonItem, [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil]] animated:YES];
-    }
-}
+    [self setToolbarItems:items animated:YES];
+ }
 
 - (void)updateRemainingTime:(NSString *)time
 {
@@ -192,13 +218,14 @@
 
 - (void)operationWithProgressInformationStarted
 {
-    [self _showProgressInToolbar:YES];
+    [self updateToolbarWithProgress:@(0)];
 }
 
 - (void)operationWithProgressInformationStopped
 {
-    [self _showProgressInToolbar:NO];
+    [self updateToolbarWithProgress:nil];
 }
+
 #pragma mark - UITableViewDataSources
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
@@ -207,15 +234,6 @@
 }
 
 #pragma mark - UITableViewDelegate
-
-- (void)tableView:(UITableView *)tableView willDisplayCell:(__kindof UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath
-{
-    VLCCloudStorageTableViewCell *cloudcell = [cell isKindOfClass:VLCCloudStorageTableViewCell.class] ? (id)cell : nil;
-    cloudcell.backgroundColor = PresentationTheme.current.colors.cellBackgroundA;
-    cloudcell.titleLabel.textColor = PresentationTheme.current.colors.cellTextColor;
-    cloudcell.folderTitleLabel.textColor = PresentationTheme.current.colors.cellTextColor;
-    cloudcell.subtitleLabel.textColor = PresentationTheme.current.colors.cellDetailTextColor;
-}
 
 - (void)goBack
 {
@@ -242,35 +260,37 @@
         }
     }
     if (!hasProgressbar) {
-        //Only show sorting button and number of files button when there is no progress bar in the toolbar
-        //Only show sorting button when controller support sorting and is authorized
-        [self setToolbarItems:[self _generateToolbarItemsWithSortButton:self.controller.isAuthorized && [self.controller supportSorting]] animated:YES];
-       
+        [self updateToolbarWithProgress:nil];
     }
-    if (self.controller.canPlayAll) {
-        self.navigationItem.rightBarButtonItems = @[_logoutButton, [UIBarButtonItem themedPlayAllButtonWithTarget:self andSelector:@selector(playAllAction:)]];
-    } else {
-        self.navigationItem.rightBarButtonItem = _logoutButton;
-    }
-
     if (_authorizationInProgress || [self.controller isAuthorized]) {
         if (self.loginToCloudStorageView.superview) {
             [self.loginToCloudStorageView removeFromSuperview];
         }
     }
-
     if (![self.controller isAuthorized]) {
         [_activityIndicator stopAnimating];
         [self showLoginPanel];
         return;
     }
 
-    //reload if we didn't come back from streaming
+    //  Set right bar buttons after cloud access is authorized
+    if (self.controller.canPlayAll) {
+        self.navigationItem.rightBarButtonItems = @[
+            _logoutButton,
+            [UIBarButtonItem themedPlayAllButtonWithTarget:self andSelector:@selector(playAllAction:)]
+        ];
+    } else {
+        self.navigationItem.rightBarButtonItem = _logoutButton;
+    }
+
+    // Reload if we didn't come back from streaming
     if (self.currentPath == nil) {
         self.currentPath = @"";
     }
-    if ([self.controller.currentListFiles count] == 0)
+
+    if ([self.controller.currentListFiles count] == 0) {
         [self requestInformationForCurrentPath];
+    }
 }
 
 - (void)logout

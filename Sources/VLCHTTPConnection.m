@@ -23,17 +23,18 @@
 #import "HTTPDynamicFileResponse.h"
 #import "HTTPErrorResponse.h"
 #import "NSString+SupportedMedia.h"
-#import "UIDevice+VLC.h"
 #import "VLCHTTPUploaderController.h"
 #import "VLCMetaData.h"
-
-#if TARGET_OS_IOS
+#import "GCDAsyncSocket.h"
 #import "VLC-Swift.h"
-#import "VLCThumbnailsCache.h"
-#endif
+
 #if TARGET_OS_TV
 #import "VLCPlayerControlWebSocket.h"
+#import "VLCMicroMediaLibraryService.h"
 #endif
+
+#define TIMEOUT_WRITE_ERROR 30
+#define HTTP_RESPONSE       90
 
 @interface VLCHTTPConnection()
 {
@@ -49,6 +50,57 @@
 @end
 
 @implementation VLCHTTPConnection
+
+#if TARGET_OS_IOS
+static NSMutableDictionary *authentificationAttemptsHosts;
+static NSMutableDictionary *authentifiedHosts;
+#endif
+
+#if TARGET_OS_IOS
++ (void)initialize
+{
+    authentificationAttemptsHosts = [[NSMutableDictionary alloc] init];
+    authentifiedHosts = [[NSMutableDictionary alloc] init];
+    [super initialize];
+}
+
+- (BOOL)isPasswordProtected:(NSString *)path
+{
+    if ([authentifiedHosts objectForKey:[asyncSocket connectedHost]]
+        || [path hasPrefix:@"/public"]
+        || [path isEqualToString:@"/favicon.ico"]) {
+        return NO;
+    }
+    return [VLCKeychainCoordinator passcodeLockEnabled];
+}
+
+- (void)handleAuthenticationFailed
+{
+    // Status Code 401 - Unauthorized
+    HTTPMessage *response = [[HTTPMessage alloc] initResponseWithStatusCode:401
+                                                                description:nil
+                                                                    version:HTTPVersion1_1];
+
+    NSData *authData = [NSData dataWithContentsOfFile:[self filePathForURI:@"/public/auth.html"]];
+    NSString *authContent = [[NSString alloc] initWithData:authData encoding:NSUTF8StringEncoding];
+    NSDictionary *replacementDict = @{
+        @"WEBINTF_TITLE" : NSLocalizedString(@"WEBINTF_TITLE", nil),
+        @"WEBINTF_AUTH_REQUIRED" : NSLocalizedString(@"WEBINTF_AUTH_REQUIRED", nil)
+    };
+
+    for(id key in replacementDict) {
+        NSString *placeholder = [NSString stringWithFormat:@"%@%@%@", @"%%", key, @"%%"];
+        authContent = [authContent stringByReplacingOccurrencesOfString:placeholder withString:[replacementDict objectForKey:key]];
+    }
+
+    [response setHeaderField:@"WWW-Authenticate" value:@"VLCAuth"];
+    [response setBody: [authContent dataUsingEncoding:NSUTF8StringEncoding]];
+    [response setHeaderField:@"Content-Length" value:[NSString stringWithFormat:@"%li", [[response body] length]]];
+
+    NSData *responseData = [self preprocessErrorResponse:response];
+    [asyncSocket writeData:responseData withTimeout:TIMEOUT_WRITE_ERROR tag:HTTP_RESPONSE];
+}
+#endif
 
 - (BOOL)supportsMethod:(NSString *)method atPath:(NSString *)path
 {
@@ -103,6 +155,96 @@
     return [super expectsRequestBodyFromMethod:method atPath:path];
 }
 
+#if TARGET_OS_IOS
+- (int)authenticate:(NSString *)host
+{
+    NSDictionary *params = [self parseGetParams];
+    int attempts = 1;
+    int ret = kVLCWifiAuthentificationBanned;
+
+    if (host == nil) {
+        return kVLCWifiAuthentificationFailure;
+    }
+
+    @synchronized (authentificationAttemptsHosts) {
+        if ([authentificationAttemptsHosts objectForKey:host]) {
+            attempts += [[authentificationAttemptsHosts objectForKey:host] intValue];
+        }
+
+        if (attempts < kVLCWifiAuthentificationMaxAttempts) {
+            if ([[params allKeys] containsObject:@"code"]) {
+                XKKeychainGenericPasswordItem *keychainItem = [XKKeychainGenericPasswordItem
+                                                               itemForService:@"org.videolan.vlc-ios.passcode"
+                                                               account:@"org.videolan.vlc-ios.passcode"
+                                                               error:nil];
+                NSString *storedCode = keychainItem.secret.stringValue;
+                NSString *code = [params valueForKey:@"code"];
+
+                if ([code isEqualToString:storedCode]) {
+                    [authentifiedHosts setObject:@(YES) forKey:host];
+                    [authentificationAttemptsHosts setObject:@(1) forKey:host];
+                    ret = kVLCWifiAuthentificationSuccess;
+                } else {
+                    [authentificationAttemptsHosts setObject:@(attempts) forKey:host];
+                    ret = kVLCWifiAuthentificationFailure;
+                }
+            } else {
+                [authentificationAttemptsHosts setObject:@(attempts) forKey:host];
+                ret = kVLCWifiAuthentificationFailure;
+            }
+        }
+    }
+    return ret;
+}
+
+- (NSObject<HTTPResponse> *)_httpGETAuthentification
+{
+    NSString *result;
+    NSString *message;
+    NSString *remainingAttempts;
+    NSString *host = [asyncSocket connectedHost];
+    int authResult = [self authenticate:host];
+    int attempts = 0;
+
+    @synchronized (authentificationAttemptsHosts) {
+        if ([authentificationAttemptsHosts objectForKey:host]) {
+            attempts += [[authentificationAttemptsHosts objectForKey:host] intValue];
+        }
+    }
+
+    switch (authResult) {
+        case kVLCWifiAuthentificationSuccess:
+            result = @"ok";
+            message = @"";
+            remainingAttempts = @"";
+            break;
+        case kVLCWifiAuthentificationFailure:
+            result = @"ko";
+            message = NSLocalizedString(@"WEBINTF_AUTH_WRONG_PASSCODE", nil);
+            remainingAttempts = [NSString stringWithFormat:@"%d", 5 - attempts];
+            break;
+        case kVLCWifiAuthentificationBanned:
+            result = @"ban";
+            message = NSLocalizedString(@"WEBINTF_AUTH_BANNED", nil);
+            remainingAttempts = @"";
+            break;
+        default:
+            result = @"ko";
+            message = @"";
+            remainingAttempts = @"";
+    }
+    NSDictionary *returnData = @{
+        @"result": result,
+        @"message": message,
+        @"remainingAttempts": remainingAttempts
+    };
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:returnData options:kNilOptions error:nil];
+    HTTPDataResponse *response = [[HTTPDataResponse alloc] initWithData:jsonData];
+    response.contentType = @"text/html";
+    return response;
+}
+#endif
+
 - (NSObject<HTTPResponse> *)_httpPOSTresponseUploadJSON
 {
     return [[HTTPDataResponse alloc] initWithData:[@"\"OK\"" dataUsingEncoding:NSUTF8StringEncoding]];
@@ -113,21 +255,19 @@
     if (!filepath) return NO;
 
     NSError *error;
-
-    NSArray *searchPaths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *directoryPath = [searchPaths firstObject];
-
-    NSArray *array = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:directoryPath error:&error];
-
-    if (error != nil) {
-        APLog(@"checking filerelationship failed %@", error);
-        return NO;
-    }
-
-    return [array containsObject:filepath.lastPathComponent];
-}
+    NSURLRelationship relationship;
 
 #if TARGET_OS_IOS
+    NSArray *searchPaths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+#else
+    NSArray *searchPaths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
+#endif
+    NSString *directoryPath = [searchPaths firstObject];
+
+    [[NSFileManager defaultManager] getRelationship:&relationship ofDirectoryAtURL:[NSURL fileURLWithPath:directoryPath] toItemAtURL:[NSURL fileURLWithPath:filepath] error:&error];
+    return relationship == NSURLRelationshipContains;
+}
+
 - (NSObject<HTTPResponse> *)_httpGETDownloadForPath:(NSString *)path
 {
     NSString *filePath = [[path stringByReplacingOccurrencesOfString:@"/download/" withString:@""] stringByRemovingPercentEncoding];
@@ -142,7 +282,7 @@
 
 - (NSObject<HTTPResponse> *)_httpGETThumbnailForPath:(NSString *)path
 {
-    NSString *filePath = [[path stringByReplacingOccurrencesOfString:@"/Thumbnail/" withString:@""] stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLFragmentAllowedCharacterSet];
+    NSString *filePath = [[path stringByReplacingOccurrencesOfString:@"/Thumbnail/" withString:@""] stringByRemovingPercentEncoding];
 
     if ([filePath isEqualToString:@"/"]) return [[HTTPErrorResponse alloc] initWithErrorCode:404];
 
@@ -158,6 +298,7 @@
     return dataResponse;
 }
 
+#if TARGET_OS_IOS
 - (NSObject<HTTPResponse> *)_httpGETLibraryForPath:(NSString *)path
 {
     NSString *filePath = [self filePathForURI:path];
@@ -191,6 +332,32 @@
     return [allMedia copy];
 }
 
+#else
+
+- (NSObject<HTTPResponse> *)_httpGETLibraryForPath:(NSString *)path
+{
+    NSArray *allMedia = [self allMedia];
+    return [self generateHttpResponseFrom:allMedia path:path];
+}
+
+- (NSArray *)allMedia
+{
+    return [[VLCMicroMediaLibraryService sharedInstance] rawListOfFiles];
+}
+
+#endif
+
+
+- (NSString *)escapeTags:(NSString *)string
+{
+    return [[[[[string stringByReplacingOccurrencesOfString:@"&" withString:@"&amp;"]
+                        stringByReplacingOccurrencesOfString:@"<" withString:@"&lt;"]
+                        stringByReplacingOccurrencesOfString:@">" withString:@"&gt;"]
+                        stringByReplacingOccurrencesOfString:@"\"" withString:@"&quot;"]
+                        stringByReplacingOccurrencesOfString:@"'" withString:@"&#039;"];
+}
+
+#if TARGET_OS_IOS
 - (NSString *)createHTMLMediaObjectFromMedia:(VLCMLMedia *)media
 {
     return [NSString stringWithFormat:
@@ -206,9 +373,10 @@
             media.thumbnail.path,
             [[media mainFile].mrl.path
              stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLFragmentAllowedCharacterSet],
-            media.title,
+            [self escapeTags:media.title],
             [media mediaDuration], [media formatSize]];
 }
+#endif
 
 - (NSString *)createHTMLFolderObjectWithImagePath:(NSString *)imagePath
                                              name:(NSString *)name
@@ -225,13 +393,38 @@
             </a> \
             <div class=\"content\">",
             imagePath,
-            name,
+            [self escapeTags:name],
             count];
 }
 
+#if TARGET_OS_TV
+- (NSString *)createHTMLMediaObjectFromRawFileWithPath:(NSString *)path
+{
+    NSString *name = path.lastPathComponent;
+    NSString *imagePath = [[VLCMicroMediaLibraryService sharedInstance] thumbnailURLForItemWithPath:path].path;
+
+    return [NSString stringWithFormat:
+            @"<div style=\"background-image:url('Thumbnail/%@')\"> \
+            <a href=\"download/%@\" class=\"inner\"> \
+            <div class=\"down icon\"></div> \
+            <div class=\"infos\"> \
+            <span class=\"first-line\">%@</span> \
+            <span class=\"second-line\"></span> \
+            </div> \
+            </a> \
+            </div>",
+            [imagePath stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLFragmentAllowedCharacterSet],
+            [path stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLFragmentAllowedCharacterSet],
+            [self escapeTags:name]];
+}
+#endif
+
 - (HTTPDynamicFileResponse *)generateHttpResponseFrom:(NSArray *)media path:(NSString *)path
 {
+    NSString *deviceModel = [[UIDevice currentDevice] model];
     NSMutableArray *mediaInHtml = [[NSMutableArray alloc] initWithCapacity:media.count];
+
+#if TARGET_OS_IOS
     for (NSObject <VLCMLObject> *mediaObject in media) {
         if ([mediaObject isKindOfClass:[VLCMLMedia class]]) {
             [mediaInHtml addObject:[self createHTMLMediaObjectFromMedia:(VLCMLMedia *)mediaObject]];
@@ -257,7 +450,6 @@
             [mediaInHtml addObject:@"</div></div>"];
         }
     } // end of forloop
-    NSString *deviceModel = [[UIDevice currentDevice] model];
 
     NSDictionary *replacementDict = @{@"FILES" : [mediaInHtml componentsJoinedByString:@" "],
                         @"WEBINTF_TITLE" : NSLocalizedString(@"WEBINTF_TITLE", nil),
@@ -265,6 +457,34 @@
                         @"WEBINTF_DROPFILES_LONG" : [NSString stringWithFormat:NSLocalizedString(@"WEBINTF_DROPFILES_LONG", nil), deviceModel],
                         @"WEBINTF_DOWNLOADFILES" : NSLocalizedString(@"WEBINTF_DOWNLOADFILES", nil),
                         @"WEBINTF_DOWNLOADFILES_LONG" : [NSString stringWithFormat: NSLocalizedString(@"WEBINTF_DOWNLOADFILES_LONG", nil), deviceModel]};
+#else
+    for (NSObject *mediaObject in media) {
+        if ([mediaObject isKindOfClass:[NSString class]]) {
+            [mediaInHtml addObject:[self createHTMLMediaObjectFromRawFileWithPath:(NSString *)mediaObject]];
+        } else if ([mediaObject isKindOfClass:[NSArray class]]) {
+            NSArray *folderItems = (NSArray *)mediaObject;
+            NSString *firstItem = folderItems.firstObject;
+            NSString *folderName = firstItem.stringByDeletingLastPathComponent.lastPathComponent;
+            NSString *artworkPath = @"";
+
+            [mediaInHtml addObject: [self createHTMLFolderObjectWithImagePath:artworkPath
+                                                                name:folderName
+                                                               count:folderItems.count]];
+            for (NSString *path in folderItems) {
+                [mediaInHtml addObject:[self createHTMLMediaObjectFromRawFileWithPath:path]];
+            }
+            [mediaInHtml addObject:@"</div></div>"];
+        }
+    }
+    NSDictionary *replacementDict = @{@"FILES" : [mediaInHtml componentsJoinedByString:@" "],
+                                      @"WEBINTF_TITLE" : NSLocalizedString(@"WEBINTF_TITLE_ATV", nil),
+                                      @"WEBINTF_DROPFILES" : NSLocalizedString(@"WEBINTF_DROPFILES", nil),
+                                      @"WEBINTF_DROPFILES_LONG" : [NSString stringWithFormat:NSLocalizedString(@"WEBINTF_DROPFILES_LONG_ATV", nil), deviceModel],
+                                      @"WEBINTF_DOWNLOADFILES" : NSLocalizedString(@"WEBINTF_DOWNLOADFILES", nil),
+                                      @"WEBINTF_DOWNLOADFILES_LONG" : [NSString stringWithFormat: NSLocalizedString(@"WEBINTF_DOWNLOADFILES_LONG", nil), deviceModel],
+                                      @"WEBINTF_OPEN_URL" : NSLocalizedString(@"ENTER_URL", nil)};
+#endif
+
     HTTPDynamicFileResponse *fileResponse = [[HTTPDynamicFileResponse alloc] initWithFilePath:[self filePathForURI:path]
                                                        forConnection:self
                                                            separator:@"%%"
@@ -274,9 +494,14 @@
     return fileResponse;
 }
 
+#if TARGET_OS_IOS
 - (HTTPDynamicFileResponse *)generateXMLResponseFrom:(NSArray *)media path:(NSString *)path
 {
     NSMutableArray *mediaInXml = [[NSMutableArray alloc] initWithCapacity:media.count];
+    /* form a strict character set to produce a valid XML stream */
+    NSMutableCharacterSet *characterSet = [[NSMutableCharacterSet alloc] init];
+    [characterSet formUnionWithCharacterSet:NSCharacterSet.URLFragmentAllowedCharacterSet];
+    [characterSet removeCharactersInString:@"!#$%&'()*+,/:;=?@[]"];
     NSString *hostName = [NSString stringWithFormat:@"%@:%@", [[VLCHTTPUploaderController sharedInstance] hostname], [[VLCHTTPUploaderController sharedInstance] hostnamePort]];
     for (NSObject <VLCMLObject> *mediaObject in media) {
         if ([mediaObject isKindOfClass:[VLCMLMedia class]]) {
@@ -285,12 +510,12 @@
             if (pathSub)
                 pathSub = [NSString stringWithFormat:@"http://%@/download/%@", hostName, pathSub];
             [mediaInXml addObject:[NSString stringWithFormat:@"<Media title=\"%@\" thumb=\"http://%@/Thumbnail/%@\" duration=\"%@\" size=\"%@\" pathfile=\"http://%@/download/%@\" pathSubtitle=\"%@\"/>",
-                                   file.title,
+                                   [file.title stringByAddingPercentEncodingWithAllowedCharacters:characterSet],
                                    hostName,
                                    file.thumbnail.path,
                                    [file mediaDuration], [file formatSize],
                                    hostName,
-                                   [[file mainFile].mrl.path stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLFragmentAllowedCharacterSet], pathSub]];
+                                   [[file mainFile].mrl.path stringByAddingPercentEncodingWithAllowedCharacters:characterSet], pathSub]];
         } else if ([mediaObject isKindOfClass:[VLCMLPlaylist class]]) {
             VLCMLPlaylist *playlist = (VLCMLPlaylist *)mediaObject;
             NSArray *playlistItems = [playlist media];
@@ -298,31 +523,33 @@
                 NSString *pathSub = [self _checkIfSubtitleWasFound:[file mainFile].mrl.path];
                 if (pathSub)
                     pathSub = [NSString stringWithFormat:@"http://%@/download/%@", hostName, pathSub];
-                [mediaInXml addObject:[NSString stringWithFormat:@"<Media title=\"%@\" thumb=\"http://%@/Thumbnail/%@\" duration=\"%@\" size=\"%@\" pathfile=\"http://%@/download/%@\" pathSubtitle=\"%@\"/>", file.title,
+                [mediaInXml addObject:[NSString stringWithFormat:@"<Media title=\"%@\" thumb=\"http://%@/Thumbnail/%@\" duration=\"%@\" size=\"%@\" pathfile=\"http://%@/download/%@\" pathSubtitle=\"%@\"/>",
+                                       [file.title stringByAddingPercentEncodingWithAllowedCharacters:characterSet],
                                        hostName,
                                        file.thumbnail.path,
                                        [file mediaDuration],
                                        [file formatSize],
                                        hostName,
-                                       [[file mainFile].mrl.path stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLFragmentAllowedCharacterSet], pathSub]];
+                                       [[file mainFile].mrl.path stringByAddingPercentEncodingWithAllowedCharacters:characterSet], pathSub]];
             }
         } else if ([mediaObject isKindOfClass:[VLCMLAlbum class]]) {
             VLCMLAlbum *album = (VLCMLAlbum *)mediaObject;
             NSArray *albumTracks = [album tracks];
             for (VLCMLMedia *track in albumTracks) {
 
-                [mediaInXml addObject:[NSString stringWithFormat:@"<Media title=\"%@\" thumb=\"http://%@/Thumbnail/%@\" duration=\"%@\" size=\"%@\" pathfile=\"http://%@/download/%@\" pathSubtitle=\"\"/>", track.title,
+                [mediaInXml addObject:[NSString stringWithFormat:@"<Media title=\"%@\" thumb=\"http://%@/Thumbnail/%@\" duration=\"%@\" size=\"%@\" pathfile=\"http://%@/download/%@\" pathSubtitle=\"\"/>",
+                                       [track.title stringByAddingPercentEncodingWithAllowedCharacters:characterSet],
                                        hostName,
                                        track.thumbnail.path,
                                        [track mediaDuration],
                                        [track formatSize],
                                        hostName,
-                                       [[track mainFile].mrl.path stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLFragmentAllowedCharacterSet]]];
+                                       [[track mainFile].mrl.path stringByAddingPercentEncodingWithAllowedCharacters:characterSet]]];
             }
         }
     } // end of forloop
 
-    NSDictionary *replacementDict = @{@"FILES" : [mediaInXml componentsJoinedByString:@" "],
+    NSDictionary *replacementDict = @{@"FILES" : [mediaInXml componentsJoinedByString:@"\n"],
                         @"NB_FILE" : [NSString stringWithFormat:@"%li", (unsigned long)mediaInXml.count],
                         @"LIB_TITLE" : [[UIDevice currentDevice] name]};
 
@@ -333,32 +560,7 @@
     fileResponse.contentType = @"application/xml";
     return fileResponse;
 }
-#else
-- (NSObject<HTTPResponse> *)_httpGETLibraryForPath:(NSString *)path
-{
-    UIDevice *currentDevice = [UIDevice currentDevice];
-    NSString *deviceModel = [currentDevice model];
-    NSString *filePath = [self filePathForURI:path];
-    NSString *documentRoot = [config documentRoot];
-    NSString *relativePath = [filePath substringFromIndex:[documentRoot length]];
-    NSDictionary *replacementDict = @{@"WEBINTF_TITLE" : NSLocalizedString(@"WEBINTF_TITLE_ATV", nil),
-                                      @"WEBINTF_DROPFILES" : NSLocalizedString(@"WEBINTF_DROPFILES", nil),
-                                      @"WEBINTF_DROPFILES_LONG" : [NSString stringWithFormat:NSLocalizedString(@"WEBINTF_DROPFILES_LONG_ATV", nil), deviceModel],
-                                      @"WEBINTF_OPEN_URL" : NSLocalizedString(@"ENTER_URL", nil)};
-
-    HTTPDynamicFileResponse *fileResponse;
-    if ([relativePath isEqualToString:@"/index.html"]) {
-        fileResponse = [[HTTPDynamicFileResponse alloc] initWithFilePath:[self filePathForURI:path]
-                                                           forConnection:self
-                                                               separator:@"%%"
-                                                   replacementDictionary:replacementDict];
-        fileResponse.contentType = @"text/html";
-    }
-
-    return fileResponse;
-}
 #endif
-
 
 - (NSObject<HTTPResponse> *)_httpGETCSSForPath:(NSString *)path
 {
@@ -389,7 +591,7 @@
      }
      */
 
-    VLCPlaybackController *vpc = [VLCPlaybackController sharedInstance];
+    VLCPlaybackService *vpc = [VLCPlaybackService sharedInstance];
     if (!vpc.isPlaying) {
         return [[HTTPErrorResponse alloc] initWithErrorCode:404];
     }
@@ -459,7 +661,7 @@
      ...]
      */
 
-    VLCPlaybackController *vpc = [VLCPlaybackController sharedInstance];
+    VLCPlaybackService *vpc = [VLCPlaybackService sharedInstance];
     if (!vpc.isPlaying || !vpc.mediaList) {
         return [[HTTPErrorResponse alloc] initWithErrorCode:404];
     }
@@ -500,12 +702,15 @@
     if ([method isEqualToString:@"POST"] && [path isEqualToString:@"/upload.json"])
         return [self _httpPOSTresponseUploadJSON];
 
-#if TARGET_OS_IOS
     if ([path hasPrefix:@"/download/"]) {
         return [self _httpGETDownloadForPath:path];
     }
     if ([path hasPrefix:@"/Thumbnail/"]) {
         return [self _httpGETThumbnailForPath:path];
+    }
+#if TARGET_OS_IOS
+    if ([path hasPrefix:@"/public/auth.html"]) {
+        return [self _httpGETAuthentification];
     }
 #else
     if ([path hasPrefix:@"/playing"]) {
@@ -558,8 +763,12 @@
 
     _receivedContent += postDataChunk.length;
 
+#if WIFI_SHARING_DEBUG || TARGET_OS_TV
     long long percentage = ((_receivedContent * 100) / _contentLength);
+#if WIFI_SHARING_DEBUG
     APLog(@"received %lli kB (%lli %%)", _receivedContent / 1024, percentage);
+#endif
+#endif
 #if TARGET_OS_TV
         if (percentage >= 10) {
             [self performSelectorOnMainThread:@selector(startPlaybackOfPath:) withObject:_filepath waitUntilDone:NO];
@@ -570,34 +779,33 @@
 #if TARGET_OS_TV
 - (void)startPlaybackOfPath:(NSString *)path
 {
-    APLog(@"Starting playback of %@", path);
+    if (!path) {
+        return;
+    }
+
     if (_receivedFiles == nil)
         _receivedFiles = [[NSMutableArray alloc] init];
 
-    if ([_receivedFiles containsObject:path])
+    if ([_receivedFiles containsObject:path]) {
         return;
+    }
 
     [_receivedFiles addObject:path];
 
-    VLCPlaybackController *vpc = [VLCPlaybackController sharedInstance];
+    APLog(@"Starting playback of %@", path);
+    VLCPlaybackService *vpc = [VLCPlaybackService sharedInstance];
     VLCMediaList *mediaList = vpc.mediaList;
 
     if (!mediaList) {
         mediaList = [[VLCMediaList alloc] init];
     }
 
-    [mediaList addMedia:[VLCMedia mediaWithURL:[NSURL fileURLWithPath:path]]];
+    VLCMedia *mediaToPlay = [VLCMedia mediaWithURL:[NSURL fileURLWithPath:path]];
+    [mediaList addMedia:mediaToPlay];
+    NSInteger indexToPlay = [mediaList indexOfMedia:mediaToPlay];
 
-    if (!vpc.mediaList) {
-        [vpc playMediaList:mediaList firstIndex:0 subtitlesFilePath:nil];
-    }
-
-    VLCFullscreenMovieTVViewController *movieVC = [VLCFullscreenMovieTVViewController fullscreenMovieTVViewController];
-
-    if (![movieVC isBeingPresented]) {
-        [[UIApplication sharedApplication].keyWindow.rootViewController presentViewController:movieVC
-                                                                                     animated:YES
-                                                                                   completion:nil];
+    if (!vpc.isPlaying) {
+        [vpc playMediaList:mediaList firstIndex:indexToPlay subtitlesFilePath:nil];
     }
 }
 #endif
@@ -685,6 +893,9 @@
     if (_storeFile) {
         @try {
             [_storeFile writeData:data];
+#if TARGET_OS_IOS
+            [[VLCHTTPUploaderController sharedInstance] resetIdleTimer];
+#endif
         }
         @catch (NSException *exception) {
             APLog(@"File to write further data because storage is full.");

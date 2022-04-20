@@ -4,18 +4,24 @@
 "SETTINGS_VIDEO_TITLE" = "Video";
 "SETTINGS_AUDIO_TITLE" = "Audio";
 
-"SETTINGS_THEME_SUBTITLE" = "App-kleuren wijzigen";
+"SETTINGS_THEME_BRIGHT" = "Helder thema";
+"SETTINGS_THEME_DARK" = "Donker thema";
+"SETTINGS_THEME_SYSTEM" = "Automatisch";
+"SETTINGS_THEME_BLACK" = "Zwarte achtergrond gebruiken bij donkere modus";
+"SETTINGS_THEME_BLACK_SUBTITLE" = "Verbetert de levensduur van de batterij op toestellen met een OLED-scherm";
 "SETTINGS_PRIVACY_SUBTITLE" = "Openen in instellingen";
 "SETTINGS_PASSCODE_LOCK_SUBTITLE" = "Toegang tot uw inhoud beveiligen";
+"SETTINGS_HIDE_LIBRARY_IN_FILES_APP_SUBTITLE" = "Uw media zullen verborgen zijn in de \"Bestanden\"-app";
 
-"SETTINGS_DARKTHEME" = "Donker thema";
+"SETTINGS_DARKTHEME" = "Uiterlijk";
 "SETTINGS_TIME_STRETCH_AUDIO" = "Audio tijdrekken";
+"SETTINGS_TIME_STRETCH_AUDIO_LONG" = "Audio versnellen en vertragen zonder de toonhoogte te veranderen (vereist een snel apparaat)";
 "SETTINGS_BACKGROUND_AUDIO" = "Audio afspelen op achtergrond";
 "SETTINGS_GENERIC_TITLE" = "Algemeen";
 "SETTINGS_PASSCODE_LOCK" = "Codeslot";
 "SETTINGS_PASSCODE_LOCK_ALLOWTOUCHID" = "Touch ID voor ontgrendelen toestaan";
 "SETTINGS_PASSCODE_LOCK_ALLOWFACEID" = "Face ID toestaan voor ontgrendelen";
-"SETTINGS_DECRAPIFY" = "Namen van items optimaliseren voor scherm";
+"SETTINGS_HIDE_LIBRARY_IN_FILES_APP" = "De mediabibliotheek verbergen in Bestanden";
 "SETTINGS_VIDEO_FULLSCREEN" = "Video afspelen in volledig scherm";
 "SETTINGS_CONTINUE_VIDEO_PLAYBACK" = "Afspelen van video hervatten";
 "SETTINGS_CONTINUE_AUDIO_PLAYBACK" = "Afspelen van audio hervatten";
@@ -23,18 +29,12 @@
 "SETTINGS_CONTINUE_PLAYBACK_ASK" = "Vragen";
 "SETTINGS_CONTINUE_PLAYBACK_ALWAYS" = "Altijd";
 "SETTINGS_NETWORK_PLAY_ALL" = "Volgend item automatisch afspelen";
+"SETTINGS_ENABLE_MEDIA_CELL_TEXT_SCROLLING" = "Scrollen van tekst in medialijst inschakelen";
 
 "SETTINGS_SKIP_LOOP_FILTER" = "Deblocking-filter";
 "SETTINGS_SKIP_LOOP_FILTER_NONE" = "Geen deblocking (snelste)";
 "SETTINGS_SKIP_LOOP_FILTER_NONREF" = "Medium deblocking";
 "SETTINGS_SKIP_LOOP_FILTER_NONKEY" = "Lage deblocking";
-
-"SETTINGS_NETWORK_CACHING_TITLE" = "Netwerkbuffergrootte";
-"SETTINGS_NETWORK_CACHING_LEVEL_LOWEST" = "Laagste latentietijd";
-"SETTINGS_NETWORK_CACHING_LEVEL_LOW" = "Lage latentietijd";
-"SETTINGS_NETWORK_CACHING_LEVEL_NORMAL" = "Normaal";
-"SETTINGS_NETWORK_CACHING_LEVEL_HIGH" = "Hoge latentietijd";
-"SETTINGS_NETWORK_CACHING_LEVEL_HIGHEST" = "Hoogste latentietijd";
 
 "SETTINGS_PLAYBACK_SPEED_DEFAULT" = "Standaard afspeelsnelheid";
 
@@ -80,19 +80,45 @@
 "SETTINGS_HWDECODING" = "Hardwaredecodering";
 "SETTINGS_HWDECODING_ON" = "Aan";
 "SETTINGS_HWDECODING_OFF" = "Uit";
+"SETTINGS_CASTING" = "Casting";
+"SETTINGS_PTCASTING" = "Audiodoorvoer";
+"SETTINGS_PTCASTINGLONG" = "Laat uw tv het renderen van audio beheren";
+"SETTINGS_CASTING_CONVERSION_QUALITY" = "Conversiekwaliteit";
+"SETTINGS_HIGH" = "Hoog";
+"SETTINGS_MEDIUM" = "Gemiddeld";
+"SETTINGS_LOW" = "Laag";
+"SETTINGS_LOWEST" = "Laagste";
 
 "SETTINGS_FEEDBACK" = "Feedback";
 "SETTINGS_SEND_FEEDBACK" = "Feedback zenden";
 "SETTINGS_SEND_RATING" = "VLC voor iOS beoordelen";
 
-"SETTINGS_FILE_SYNC" = "Bestandssynchronisatie";
-"SETTINGS_WIFISHARING_IPv6" = "IPv6-ondersteuning voor WiFi-delen";
-"SETTINGS_UNLINK_DROPBOX" = "Loskoppelen van Dropbox";
-"SETTINGS_UNLINK_GOOGLEDRIVE" = "Loskoppelen van Google Drive";
-"SETTINGS_UNLINK_ONEDRIVE" = "Loskoppelen van OneDrive";
-"SETTINGS_FTP_TEXT_ENCODING" = "Tekstcodering voor ftp-verbindingen";
+"SETTINGS_MEDIA_LIBRARY" = "Mediabibliotheek";
+"SETTINGS_MEDIA_LIBRARY_RESCAN" = "VLC dwingen om de mediabibliotheek opnieuw te scannen";
+"SETTINGS_DECRAPIFY" = "Namen van items optimaliseren voor scherm";
+"SETTINGS_DISABLE_GROUPING" = "Automatisch groeperen van media uitschakelen";
+"SETTINGS_SHOW_THUMBNAILS" = "Video-miniaturen weergeven";
+"SETTINGS_SHOW_ARTWORKS" = "Albumhoezen weergeven";
+"SETTINGS_BACKUP_MEDIA_LIBRARY" = "De mediabibliotheek opnemen in de back-up van het apparaat";
+
+"SETTINGS_NETWORK" = "Netwerk";
+"SETTINGS_NETWORK_CACHING_TITLE" = "Netwerkbuffergrootte";
+"SETTINGS_NETWORK_CACHING_LEVEL_LOWEST" = "Laagste latentietijd";
+"SETTINGS_NETWORK_CACHING_LEVEL_LOW" = "Lage latentietijd";
+"SETTINGS_NETWORK_CACHING_LEVEL_NORMAL" = "Normaal";
+"SETTINGS_NETWORK_CACHING_LEVEL_HIGH" = "Hoge latentietijd";
+"SETTINGS_NETWORK_CACHING_LEVEL_HIGHEST" = "Hoogste latentietijd";
+"SETTINGS_WIFISHARING_IPv6" = "IPv6-ondersteuning voor wifi-delen";
+"SETTINGS_FORCE_SMBV1" = "Voorkeur voor SMB 1";
+"SETTINGS_FORCE_SMBV1_LONG" = "Vink deze instelling uit als u problemen ondervindt bij het bladeren op uw SMB-server.";
+"SETTINGS_RTSP_TCP" = "RTP via RTSP (TCP) gebruiken";
+"SETTINGS_NETWORK_SATIP_CUSTOM_CHANNEL_LIST" = "URL van aangepaste SAT>IP-kanaallijst";
 
 "SETTINGS_ARTWORK" = "Albumhoes";
 "SETTINGS_DOWNLOAD_ARTWORK" = "Albumhoes downloaden";
+
+"SETTINGS_LAB" = "Lab";
+"SETTINGS_DEBUG_LOG" = "Debug-logs opslaan op apparaat";
+"SETTINGS_EXPORT_LIBRARY" = "Mediabibliotheek dumpen";
 
 "ABOUT_APP_TV" = "Over VLC voor tvOS";

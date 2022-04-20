@@ -1,13 +1,15 @@
 /*****************************************************************************
  * VLC for iOS
  *****************************************************************************
- * Copyright (c) 2015 VideoLAN. All rights reserved.
+ * Copyright (c) 2015, 2021 VideoLAN. All rights reserved.
  * $Id$
  *
  * Authors: Felix Paul Kühne <fkuehne # videolan.org>
  *
  * Refer to the COPYING file of the official project for license.
  *****************************************************************************/
+
+#import "VLC-Swift.h"
 
 #import "AppleTVAppDelegate.h"
 #import "VLCServerListTVViewController.h"
@@ -16,7 +18,7 @@
 #import "VLCCloudServicesTVViewController.h"
 #import "VLCHTTPUploaderController.h"
 #import "VLCRemotePlaybackViewController.h"
-#import <HockeySDK/HockeySDK.h>
+#import "VLCMicroMediaLibraryService.h"
 
 @interface AppleTVAppDelegate ()
 {
@@ -48,25 +50,22 @@
                                   kVLCSettingDeinterlace : kVLCSettingDeinterlaceDefaultValue,
                                   kVLCSettingHardwareDecoding : kVLCSettingHardwareDecodingDefault,
                                   kVLCSettingNetworkCaching : kVLCSettingNetworkCachingDefaultValue,
+                                  kVLCSettingNetworkRTSPTCP : @(NO),
+                                  kVLCSettingNetworkSatIPChannelListUrl : @"",
                                   kVLCSettingEqualizerProfileDisabled : @(YES),
                                   kVLCSettingEqualizerProfile : kVLCSettingEqualizerProfileDefaultValue,
                                   kVLCSettingPlaybackForwardSkipLength : kVLCSettingPlaybackForwardSkipLengthDefaultValue,
                                   kVLCSettingPlaybackBackwardSkipLength : kVLCSettingPlaybackBackwardSkipLengthDefaultValue,
-                                  kVLCSettingFTPTextEncoding : kVLCSettingFTPTextEncodingDefaultValue,
                                   kVLCSettingWiFiSharingIPv6 : kVLCSettingWiFiSharingIPv6DefaultValue,
                                   kVLCAutomaticallyPlayNextItem : @(YES),
-                                  kVLCSettingDownloadArtwork : @(YES)};
+                                  kVLCSettingDownloadArtwork : @(YES),
+                                  kVLCForceSMBV1 : @(YES),
+                                  kVLCSettingBackupMediaLibrary : kVLCSettingBackupMediaLibraryDefaultValue};
     [defaults registerDefaults:appDefaults];
 }
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
-    BITHockeyManager *hockeyManager = [BITHockeyManager sharedHockeyManager];
-    [hockeyManager configureWithIdentifier:@"f8697706993b44bba1c03cb7016cc325"];
-
-    // Configure the SDK in here only!
-    [hockeyManager startManager];
-
     self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
     _localNetworkVC = [[VLCServerListTVViewController alloc] initWithNibName:nil bundle:nil];
     _remotePlaybackVC = [[VLCRemotePlaybackViewController alloc] initWithNibName:nil bundle:nil];
@@ -83,11 +82,24 @@
 
     self.window.rootViewController = _mainViewController;
 
-    // Init the HTTP Server
+    // Init the HTTP Server and the micro media library
     [VLCHTTPUploaderController sharedInstance];
+    [[VLCMicroMediaLibraryService sharedInstance] updateMediaList];;
 
     [self.window makeKeyAndVisible];
     return YES;
+}
+
+- (BOOL)application:(UIApplication *)app openURL:(NSURL *)url options:(NSDictionary<UIApplicationOpenURLOptionsKey,id> *)options
+{
+    for (id<VLCURLHandler> handler in URLHandlers.handlers) {
+        if ([handler canHandleOpenWithUrl:url options:options]) {
+            if ([handler performOpenWithUrl:url options:options]) {
+                return YES;
+            }
+        }
+    }
+    return NO;
 }
 
 @end

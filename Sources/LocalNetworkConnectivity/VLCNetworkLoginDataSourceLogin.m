@@ -1,10 +1,11 @@
 /*****************************************************************************
  * VLC for iOS
  *****************************************************************************
- * Copyright (c) 2016 VideoLAN. All rights reserved.
+ * Copyright (c) 2016, 2021 VideoLAN. All rights reserved.
  * $Id$
  *
  * Authors: Vincent L. Cone <vincent.l.cone # tuta.io>
+ *          Felix Paul Kühne <fkuehne # videolan.org>
  *
  * Refer to the COPYING file of the official project for license.
  *****************************************************************************/
@@ -65,12 +66,17 @@ typedef NS_ENUM(NSUInteger, VLCNetworkServerLoginIndex) {
     NSString *labelString = nil;
     NSString *valueString = nil;
     UIReturnKeyType returnKeyType = UIReturnKeyNext;
-    UITextAutocapitalizationType autocapitalizationType = UITextAutocapitalizationTypeSentences;
+    NSString *textContentType = nil;
+
     switch (row) {
         case VLCNetworkServerLoginIndexServer:
             keyboardType = UIKeyboardTypeURL;
             labelString = NSLocalizedString(@"SERVER", nil);
             valueString = self.loginInformation.address;
+            [self.delegate canConnect:valueString && valueString.length > 0];
+            if (@available(iOS 10.0, *)) {
+                textContentType = UITextContentTypeURL;
+            }
             break;
         case VLCNetworkServerLoginIndexPort:
             keyboardType = UIKeyboardTypeNumberPad;
@@ -79,8 +85,10 @@ typedef NS_ENUM(NSUInteger, VLCNetworkServerLoginIndex) {
             break;
         case VLCNetworkServerLoginIndexUsername:
             labelString = NSLocalizedString(@"USER_LABEL", nil);
-            autocapitalizationType = UITextAutocapitalizationTypeNone;
             valueString = self.loginInformation.username;
+            if (@available(iOS 11.0, *)) {
+                textContentType = UITextContentTypeUsername;
+            }
             break;
         case VLCNetworkServerLoginIndexPassword:
             labelString = NSLocalizedString(@"PASSWORD_LABEL", nil);
@@ -88,6 +96,9 @@ typedef NS_ENUM(NSUInteger, VLCNetworkServerLoginIndex) {
             secureTextEntry = YES;
             if (self.loginInformation.additionalFields.count == 0) {
                 returnKeyType = UIReturnKeyDone;
+            }
+            if (@available(iOS 11.0, *)) {
+                textContentType = UITextContentTypePassword;
             }
             break;
         default: {
@@ -106,12 +117,16 @@ typedef NS_ENUM(NSUInteger, VLCNetworkServerLoginIndex) {
 
     fieldCell.placeholderString = labelString;
     UITextField *textField = fieldCell.textField;
-    textField.autocapitalizationType = autocapitalizationType;
-    textField.text              = valueString;
-    textField.keyboardType      = keyboardType;
-    textField.secureTextEntry   = secureTextEntry;
-    textField.returnKeyType     = returnKeyType;
-    textField.tag               = row;
+    textField.autocorrectionType     = UITextAutocorrectionTypeNo;
+    textField.autocapitalizationType = UITextAutocapitalizationTypeNone;
+    textField.text                   = valueString;
+    textField.keyboardType           = keyboardType;
+    textField.secureTextEntry        = secureTextEntry;
+    textField.returnKeyType          = returnKeyType;
+    textField.tag                    = row;
+    if (@available(iOS 10.0, *)) {
+        textField.textContentType = textContentType;
+    }
     fieldCell.delegate = self;
 }
 
@@ -120,6 +135,7 @@ typedef NS_ENUM(NSUInteger, VLCNetworkServerLoginIndex) {
     switch (row) {
         case VLCNetworkServerLoginIndexServer:
             self.loginInformation.address = string;
+            [self.delegate canConnect:string && string.length > 0];
             break;
         case VLCNetworkServerLoginIndexPort:
             self.loginInformation.port = string.length > 0 ? @(string.integerValue) : nil;

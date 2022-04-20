@@ -1,10 +1,8 @@
-"STORE_DESCRIPTION" = "VLC for iOS je portom voľne dostupného programu VLC media player pre zariadenia iPad, iPhone a iPod touch.\nDokáže prehrávať všetky vaše filmy, show a hudbu vo väčšine formátov - a to priamo a bez konvertovania. \nUmožňuje synchronizáciu súborov so službami Dropbox, GDrive, OneDrive, Box, iCloud Drive, iTunes, priame stiahnutie a zdieľanie cez sieť WiFi, ako aj streamovanie z mediálnych serverov SMB, FTP, UPnP/DLNA a webu.\nVLC ponúka aj podporu pokročilých titulkov, vrátane úplne kompatibility s SSA, zvukom s viacerými stopami a ovládaním rýchlosti prehrávania.\n\nVLC for iOS je dostupný zadarmo a má otvorený zdrojový kód.";
+"STORE_DESCRIPTION" = "VLC je voľne dostupný multi-platformový prehrávač multimédií, ktorá má otvorený zdrojový kód.\nPriamo a bez konverzie dokáže prehrávať všetky vaše filmy, show a hudbu vo väčšine formátov.\nUmožňuje synchronizáciu súborov so službami Dropbox, GDrive, OneDrive, Box, iCloud Drive, iTunes, priame stiahnutia a zdieľanie cez Wi-Fi, ako aj streamovanie z mediálnych serverov SMB, FTP, SFTP, NFS, UPnP/DLNA a webu.\nVLC ponúka aj podporu pokročilých titulkov, vrátane úplnej kompatibility s SSA, zvukom s viacerými stopami, ovládaním rýchlosti prehrávania a vykresľovaním cez Chromecast.\n\nVLC je úplne zadarmo a má otvorený zdrojový kód.";
 
-"STORE_DESCRIPTION_TV" = "VLC media player je voľne dostupný, multiplatformový prehrávač médií, s otvoreným zdrojovým kódom.\nDokáže prehrať všetky vaše filmy, show a hudbu vo väčšine formátov - priamo a bez konvertovania.\nUmožňuje streamovanie z cloudových služieb (Dropbox, OneDrive, Box), Remote Playback z vášho zariadenia Mac alebo PC cez Web UI, ako aj streamovanie z mediálnych serverov SMB, FTP, UPnP/DLNA a z webu.\nVLC ponúka podporu pre pokročilé titulky, vrátane úplnej kompatibility s SSA, zvukom s viacerými stopami a s ovládaním rýchlosti prehrávania.\n\nVLC for iOS je úplne zadarmo a má otvorený zdrojový kód.\n\nMeta-dáta a obaly sú preberané z databáz TMDb a Hatchet, čo je komunita udržiavajúca databázy filmov a hudby.";
+"STORE_DESCRIPTION_TV" = "VLC je voľne dostupný, multiplatformový prehrávač médií.\nPriamo a bez konvertovania dokáže prehrať všetky vaše filmy, show a hudbu vo väčšine formátov - priamo a bez konvertovania.\nUmožňuje vzdialené prehrávanie z vášho zariadenia Mac alebo PC, cez Web UI, ako aj streamovanie z mediálnych serverov SMB, FTP, SFTP, NFS, UPnP/DLNA a webu.\nVLC ponúka podporu pre pokročilé titulky, vrátane úplnej kompatibility s SSA, zvukom s viacerými stopami a s ovládaním rýchlosti prehrávania.\nVLC je úplne zadarmo a má otvorený zdrojový kód.\nObaly (artwork) poskytuje TMDb, čo je databáza filmov spravovaná komunitou.";
 
-"CHOOSE_AUDIO_TRACK" = "Vybrať zvukovú stopu";
-"CHOOSE_SUBTITLE_TRACK" = "Vybrať stopu s titulkami";
-"OPEN_TRACK_PANEL" = "Otvoriť výber stôp";
+"UNKNOWN_TRACK_TYPE" = "Neznámy typ stopy";
 "CHOOSE_TITLE" = "Vybrať titul";
 "CHOOSE_CHAPTER" = "Vybrať kapitolu";
 "CHAPTER_SELECTION_TITLE" = "Kapitoly";
@@ -35,9 +33,9 @@
 "VFILTER_SATURATION" = "Sýtosť";
 "VFILTER_GAMMA" = "Gamma";
 
+"PRESET_PREAMP_SETTING" = "Prednastavenia/nastavenia predzosilnenia";
 "PREAMP" = "Predzosilnenie";
-"DB_FORMAT" = "%i dB";
-"CHOOSE_EQUALIZER_PROFILES" = "Výber profilu ekvalizéra";
+"SNAP_BANDS" = "Prichytiť pásma";
 
 "PLAYBACK_FAILED" = "Prehrávanie zlyhalo";
 "PLEASE_WAIT" = "Prosím čakajte";
@@ -68,20 +66,22 @@
 "BUTTON_CONTINUE" = "Pokračovať";
 "BUTTON_SET" = "Nastaviť";
 "BUTTON_RESET" = "Reset";
+"BUTTON_RESCAN" = "Preskenovať znovu";
 "PRIVATE_PLAYBACK_TOGGLE" = "Súkromné prehrávanie";
 "SCAN_SUBTITLE_TOGGLE" = "Skenovať na titulky (len cez http)";
 
 "BUTTON_RENDERER" = "Zariadenia na streamovanie (casting)";
 "BUTTON_RENDERER_HINT" = "Zobraziť menu pre dostupné zariadeni na streamovanie (casting)";
+"BUTTON_AIRPLAY" = "AirPlay alebo Bluetooth";
+"BUTTON_AIRPLAY_HINT" = "Zobraziť menu dostupných zariadení AirPlay alebo Bluetooth";
 
 "UPGRADING_LIBRARY" = "Aktualizovanie knižnice médii";
-"UNKNOWN" = "Neznáme";
 
 "OPEN_NETWORK" = "Otvoriť sieťový stream";
 "NETWORK_TITLE" = "Sieťový stream";
 "OPEN_NETWORK_HELP" = "Pre priame otvorenie streamu zadajte HTTP, RTSP, RTMP, MMS, FTP or UDP/RTP adresu.";
 "HTTP_UPLOAD_SERVER_OFF" = "Neaktívny server";
-"HTTP_UPLOAD_NO_CONNECTIVITY" = "Žiadne aktívne pripojenie WiFi";
+"HTTP_UPLOAD_NO_CONNECTIVITY" = "Žiadne aktívne Wi-Fi pripojenie";
 "OPEN_STREAM_OR_DOWNLOAD" = "Chcete súbor z tejto adresy URL stiahnuť alebo prehrať?";
 "SHARED_VLC_IOS_LIBRARY" = "Zdieľaná knižnica VLC for iOS";
 "SMB_CIFS_FILE_SERVERS" = "Súborové servery (SMB)";
@@ -126,6 +126,9 @@
 "LOCAL_SERVER_LAST_UPDATE" = "Naposledy aktualizované dňa %@";
 "LOCAL_SERVER_CONNECTION_FAILED_TITLE" = "NEPODARILO SA PRIPOJIŤ K SERVERU";
 "LOCAL_SERVER_CONNECTION_FAILED_MESSAGE" = "Prosím skontrolujte adresu servera a poverenia";
+
+"FILES_APP_CELL_TITLE" = "Lokálne súbory";
+"FILES_APP_CELL_SUBTITLE" = "Otvoriť súbor bez skopírovania do VLC";
 
 "CLOUD_SERVICES" = "Cloudové služby";
 "LOGIN" = "Prihlásiť";
@@ -175,9 +178,15 @@
 "OFF" = "Vyp.";
 
 "EMPTY_LIBRARY" = "Prázdna knižnica médií";
-"EMPTY_LIBRARY_LONG" = "Na prehratie môžete streamovať médium zo servera vo vašej lokálnej sieti, z cloud-úložiska alebo môžete synchronizovať médium so svojím zariadením, s použitím služieb iTunes, WiFi Upload alebo Cloud.";
+"EMPTY_LIBRARY_LONG" = "Pre prehrávanie môžete streamovať médium zo servera na vašej lokálnej sieti, z cloudu alebo synchronizovať médium do vášho zariadenia pomocou iTunes, odoslania cez Wi-fi alebo cloudových služieb.";
 
-"PLAYBACK_SCRUB_HELP" = "Pre úpravu rýchlosti posúvania prejdite prstom nadol.";
+"EMPTY_NO_PLAYLISTS" = "Playlisty";
+"EMPTY_NO_PLAYLISTS_DESCRIPTION" = "Na vytvorenie playlistov vstúpte do režimu pre úpravy na kartách s video- alebo audio-obsahom a vyberte si obľúbené médium.\nTaktiež môžete synchronizovať existujúce playlisty z iných vašich zariadení alebo z internetu.";
+
+"EMPTY_PLAYLIST" = "Vyprázdniť playlist";
+"EMPTY_PLAYLIST_DESCRIPTION" = "Pridať médium počas úpravy v príslušných kategóriách.";
+
+"PLAYBACK_SCRUB_HELP" = "Posunom prsta nahor zmeníte rýchlosť posúvania.";
 "PLAYBACK_SCRUB_HIGH" = "Posúvanie vysokou rýchlosťou";
 "PLAYBACK_SCRUB_HALF" = "Posúvanie polovičnou rýchlosťou";
 "PLAYBACK_SCRUB_QUARTER" = "Posúvanie štvrtinovou rýchlosťou";
@@ -185,8 +194,7 @@
 "PLAYBACK_POSITION" = "Pozícia pri prehrávaní";
 "VIDEO_FILTER" = "Filtre videa";
 "VIDEO_FILTER_RESET_BUTTON" = "Reset filtrov videa";
-"VIDEO_ASPECT_RATIO_BUTTON" = "Prepnúť stranový pomer videa";
-"PLAY_PAUSE_BUTTON" = "Prehrávať alebo pozastaviť aktuálne prehrávanie";
+"VIDEO_ASPECT_RATIO_BUTTON" = "Pomer strán videa";
 "BWD_BUTTON" = "Preskočiť dozadu";
 "FWD_BUTTON" = "Preskočiť dopredu";
 "PLAY_BUTTON" = "Prehrať";
@@ -194,14 +202,16 @@
 "PREV_BUTTON" = "Predchádzajúce";
 "PLAY_ALL_BUTTON" = "Prehrať všetko";
 
+"RESET_VIDEO_FILTERS" = "Chcete vykonať reset filtrov pre video?";
+"RESET_PLAYBACK_SPEED" = "Chcete vykonať reset rýchlosti prehrávania?";
+"RESET_EQUALIZER" = "Chcete vykonať reset nastavení ekvalizéra?";
+"RESET_SLEEP_TIMER" = "Chcete vykonať reset časovača uspania?";
+
 "VERSION_FORMAT" = "Verzia: %@";
 "BASED_ON_FORMAT" = "Založené na:<br />%@";
 
 "NEW" = "NOVINKA";
 
-"BUG_REPORT_TITLE" = "Nahlásenie chyby";
-"BUG_REPORT_MESSAGE" = "Chcete vytvoriť záznam o chybe?";
-"BUG_REPORT_BUTTON" = "Otvoriť Safari";
 
 "VO_VIDEOPLAYER_TITLE" = "Prehrávač videa";
 "VO_VIDEOPLAYER_DOUBLETAP" = "Zobrazenie alebo skrytie ovládacích prvkov prehrávania vykonáte dvojitým dotykom";
@@ -209,7 +219,7 @@
 "FIRST_STEPS_ITUNES" = "Synchronizácia súboru iTunes";
 "FIRST_STEPS_ITUNES_TITLE" = "Synchronizácia s vaším počítačom";
 "FIRST_STEPS_ITUNES_DETAILS" = "Pripojte Vaše zariadenie k iTunes a vyberte ho. Vyberte \"Zdieľanie súboru\" menu na ľavej strane iTunes a vyhľadajte VLC na prenesenie súborov";
-"FIRST_STEPS_WIFI_TITLE" = "Zdieľať cez Wifi";
+"FIRST_STEPS_WIFI_TITLE" = "Zdieľať cez Wi-Fi";
 "FIRST_STEPS_WIFI_DETAILS" = "Zadajte vygenerovanú adresu URL vo vašom obľúbenom webovom prehliadači, počas pripojenia do rovnakej siete ako je Váš telefón";
 "FIRST_STEPS_CLOUDS" = "Služby typu Cloud";
 "FIRST_STEPS_CLOUD_TITLE" = "Cloud";
@@ -226,30 +236,33 @@
 "NO_SERVER_FOUND" = "Nenašiel sa žiadny server";
 "NO_RECENT_STREAMS" = "Naposledy nebol prehrávaný žiadny stream";
 
-"WEBINTF_TITLE" = "Zdieľanie cez WiFi";
+"WEBINTF_TITLE" = "Zdieľanie cez Wi-Fi";
 "WEBINTF_DROPFILES" = "Pustiť súbory";
 "WEBINTF_DROPFILES_LONG" = "Ak chcete pridať súbory do vášho %@, preneste ich do tohto okna.<br>Alebo kliknite na tlačidlo \"+\" a použite dialógové okno na pridávanie súborov.";
 "WEBINTF_DOWNLOADFILES" = "Stiahnuť súbory";
 "WEBINTF_DOWNLOADFILES_LONG" = "Kliknite na súbor, ktorý chcete stiahnuť z %@.";
+"WEBINTF_ADDRESS_COPIED" = "Adresa bola skopírovaná do schránky";
 "WEBINTF_TITLE_ATV" = "Vzdialené prehrávanie";
 "WEBINTF_DROPFILES_LONG_ATV" = "Presuňte súbory v okne na ich prehratie v %@.<br>Alebo kliknite na tlačidlo \"+\" na použitie dialógu pre výber súborov.";
 "WEBINTF_URL_SENT" = "Adresa URL bola úspešne odoslaná.";
 "WEBINTF_URL_EMPTY" = "Adresa URL nemôže byť prázdna.";
 "WEBINTF_URL_INVALID" = "Neplatná adresa URL.";
+"WEBINTF_AUTH_REQUIRED" = "Prosím zadajte prístupový kód nastavený vo VLC iOS:";
+"WEBINTF_AUTH_WRONG_PASSCODE" = "Nesprávny prístupový kód.<br>Zostávajúce pokusy:";
+"WEBINTF_AUTH_BANNED" = "Zadali ste príliš veľa nesprávnych prístupových kódov.<br>Prosím reštartujte VLC iOS a skúste to znovu.";
 
 
 
 "DURATION" = "Trvanie";
 "TITLE" = "Titul";
 
-// strings from VLCKit
+// MARK: - strings from VLCKit
 
-// accessibility labels for the playlist
+// MARK: - accessibility labels for the playlist
 
 
-"LONGPRESS_TO_STOP" = "Dlhým stlačením môžete prehrávanie zastaviť.";
 
-// ATV specific
+// MARK: - ATV specific
 "AUDIO_INFO_VC_TITLE" = "Informácia o zvuku";
 "CLOUD_LOGIN_LONG" = "Na prístup ku cloudovým službám sa prihláste k službe iCloud na Apple TV a na zariadení s iOS, s použitím rovnakého Apple ID a zapnite zdieľanie kľúčového reťazca v nastaveniach systému.\nPotom sa prihláste k poskytovateľovi cloudových služieb podľa vášho výberu v aplikácii VLC na vašom zariadení s iOS. Nakoniec vykonajte výber na obrazovke.";
 "ENTER_URL" = "Pre prehrávanie zadajte adresu URL";
@@ -259,6 +272,7 @@
 "CACHED_MEDIA_LONG" = "Médiá, ktoré sú tu zobrazené, sú uložené lokálne - na vašej Apple TV. Pamätajte na to, že obsah môže byť odstránený operačným systémom bez upovedomenia, vždy vtedy, keď nebeží VLC a zariadenie nemá dostatok pamäte.";
 "DOWNLOAD_SUBS_FROM_OSO" = "Stiahnuť titulky z OpenSubtitles.org...";
 "FOUND_SUBS" = "Boli nájdené titulky";
+"NO_SUB_FOUND_OSO" = "Pre mediálnu položku \"%@\" sa nenašli žiadne titulky.";
 "USE_SPDIF" = "Použiť prechod (S/PDIF)";
 
 "PLAYBACK" = "Prehrávanie";
@@ -266,16 +280,23 @@
 "REPEAT_DISABLED" = "Zablokované";
 "REPEAT_SINGLE" = "Jednu položku";
 "REPEAT_FOLDER" = "Priečinok";
+"SHUFFLE" = "Náhodne";
 
-// Local Network Service Names
+"RESET_NETWORK_STREAM_LIST_TITLE" = "Reset zoznamu";
+"RESET_NETWORK_STREAM_LIST_TEXT" = "Natrvalo resetovať zoznam naposledy prehraných sieťových streamov.";
+
+// MARK: - Local Network Service Names
 "UPNP_LONG" = "Universal Plug'n'Play (UPnP)";
 "UPNP_SHORT" = "UPnP";
 
 "PLEX_LONG" = "Plex Media Server (cez Bonjour)";
 "PLEX_SHORT" = "Plex";
 
-"FTP_LONG" = "Protokol na prenos súborov (FTP)";
 "FTP_SHORT" = "FTP";
+"SFTP_SHORT" = "SFTP";
+
+"NFS_LONG" = "Network File System (NFS)";
+"NFS_SHORT" = "NFS";
 
 "BONJOUR_FILE_SERVERS" = "Súborový server BONJOUR";
 "DSM_WORKGROUP" = "Pracovná skupina";
@@ -285,10 +306,12 @@
 // Insert %@ where play-pause-glyph should be placed
 "DELETE_ITEM_HINT" = "Pre vymazanie stlačte %@"; /* Insert %@ where play-pause-glyph should be placed */
 
-"DELETE_MESSAGE" = "Potvrďte vymazanie vybraných súborov";
-"DELETE_TITLE" = "Vymazať vybrané súbory";
+"DELETE_MESSAGE" = "Potvrďte vymazanie výberu";
+"DELETE_MESSAGE_PLAYLIST" = "Naozaj chcete vymazať vybraný playlist?\nAsociované súbory s médiami sa nevymažú.";
+"DELETE_MESSAGE_PLAYLIST_CONTENT" = "Naozaj chcete odstrániť vybrané médium z playlistu?\nTým nedôjde k vymazaniu z disku.";
+"DELETE_TITLE" = "Vymazať výber";
 
-//Drag and Drop
+// MARK: - Drag and Drop
 "THIS_FILE" = "Tento súbor";
 "NOT_SUPPORTED_FILETYPE" = "%@ nie je podporovaný typ súborov vo VLC";
 "FILE_EXISTS" = "%@ už existuje";
@@ -303,22 +326,26 @@
 "SEARCH" = "Hľadanie";
 "VIDEO" = "Video";
 
-// MediaViewController Swipable Header
+// MARK: - MediaViewController Swipable Header
 "ALBUMS" = "Albumy";
 "ARTISTS" = "Umelci";
 "EPISODES" = "Epizódy";
 "GENRES" = "Žánre";
-"MOVIES" = "Filmy";
+"ALL_VIDEOS" = "Všetky videá";
 "SONGS" = "Skladby";
 "PLAYLISTS" = "Playlisty";
+"VIDEO_GROUPS" = "Skupiny videí";
 
 "MODIFIED_DATE" = "Upravený dátum";
 "NAME" = "Meno";
 
-//EDIT
+// MARK: - EDIT
 
 "BUTTON_EDIT" = "Upraviť";
 "BUTTON_EDIT_HINT" = "Režim úprav";
+
+"BUTTON_SELECT_ALL" = "Vybrať všetko";
+"BUTTON_SELECT_ALL_HINT" = "Vybrať všetky médiá v tomto zobrazení";
 
 "ADD_TO_PLAYLIST" = "Pridať do playlistu";
 "ADD_TO_PLAYLIST_HINT" = "Otvoriť menu na pridanie do playlistu";
@@ -338,7 +365,7 @@
 "RENAME_HINT" = "Premenovať vybrané súbory";
 "DELETE_HINT" = "Vymazať vybrané súbory";
 
-// Sort
+// MARK: - Sort
 
 "BUTTON_SORT" = "Zoradiť";
 "BUTTON_SORT_HINT" = "Zobraziť zoznam akcií zoradenia";
@@ -346,8 +373,9 @@
 "DESCENDING_LABEL" = "Zostupné poradie";
 "DESCENDING_SWITCH_LABEL" = "Vzostupné alebo zostupné poradie";
 "DESCENDING_SWITCH_HINT" = "Zoradiť kontext vzostupne alebo zostupne";
+"GRID_LAYOUT" = "Rozloženie mriežky";
 
-// VLCMediaLibraryKit - Sorting Criteria
+// MARK: - VLCMediaLibraryKit - Sorting Criteria
 
 "ALPHA" = "Abecedne";
 "DURATION" = "Trvanie";
@@ -360,21 +388,156 @@
 "ALBUM" = "Album";
 "FILENAME" = "Názov súboru";
 "TRACK_NUMBER" = "Číslo stopy";
+"NB_AUDIO" = "Číslo zvuku";
+"NB_MEDIA" = "Číslo média";
+"NB_VIDEO" = "Číslo videa";
 
-// VLCNetworkLoginTVViewController
+// MARK: - VLCNetworkLoginTVViewController
 
 "NO_SAVING_DATA" = "Nič sa nenašlo";
 
-// MediaCollectionViewCell
+// MARK: - MediaCollectionViewCell
 
 "UNKNOWN_ARTIST" = "Neznámy umelec";
 "VARIOUS_ARTIST" = "Rôzni umelci";
 "UNKNOWN_ALBUM" = "Neznámy album";
 
-/* New strings */
+// MARK: - VideoPlayerControls
+
+"SUBTITLE_AND_TRACK_BUTTON" = "Titulky a zvukové stopy";
+"SUBTITLE_AND_TRACK_HINT" = "Vyberte titulky alebo zvukové stopy";
+
+"DVD_BUTTON" = "DVD";
+"DVD_HINT" = "Rozhranie DVD";
+
+"ROTATION_LOCK_BUTTON" = "Uzamknutie otočenia";
+"ROTATION_LOCK_HINT" = "Uzamknúť aktuálnu orientáciu videa";
+
+"REPEAT_HINT" = "Opakovať to isté médium";
+
+"BACKWARD_BUTTON" = "Dozadu";
+"BACKWARD_HINT" = "Preskočiť dozadu";
+
+"PREVIOUS_BUTTON" = "Predchádzajúce";
+"PREVIOUS_HINT" = "Predchádzajúce médium";
+
+"PLAY_PAUSE_BUTTON" = "Prehrať alebo pozastaviť";
+"PLAY_PAUSE_HINT" = "Prehrať alebo pozastaviť aktuálne prehrávanie";
+
+"STOP_BUTTON" = "Stop";
+
+"NEXT_HINT" = "Ďalšie médium";
+
+"FORWARD_BUTTON" = "Dopredu";
+"FORWARD_HINT" = "Preskočiť dopredu";
+
 "INTERFACE_LOCK_BUTTON" = "Uzamknúť rozhranie";
-"INTERFACE_LOCK_HINT" = "Zablokovať ovládače rozhrania";
+
+"SHUFFLE_HINT" = "Premiešať zoznam média";
+
+"VIDEO_ASPECT_RATIO_BUTTON" = "Pomer strán videa";
+"VIDEO_ASPECT_RATIO_HINT" = "Zmeniť pomer strán aktuálneho videa";
+
 "MORE_OPTIONS_BUTTON" = "Viac";
 "MORE_OPTIONS_HINT" = "Zobraziť viac možností ovládania";
-"REPEAT_MODE_HINT" = "Zmeniť režim opakovania aktuálnej položky";
-"VIDEO_ASPECT_RATIO_HINT" = "Zmeniť pomer strán aktuálneho videa";
+
+"PLAYER_WARNING_SUBTITLE_CAST_TITLE" = "Titulky nie sú podporované";
+"PLAYER_WARNING_SUBTITLE_CAST_DESCRIPTION" = "Titulky ešte nie sú podporované počas streamovania (castingu).";
+
+// MARK: - MediaMoreOptionsActionSheet
+"EQUALIZER_CELL_TITLE" = "Ekvalizér";
+"MORE_OPTIONS_HEADER_TITLE" = "Možnosti videa";
+
+// MARK: - Settings - Force rescan alert
+"FORCE_RESCAN_TITLE" = "Vynútiť si opätovné skenovanie knižnice médií";
+"FORCE_RESCAN_MESSAGE" = "Chcete si vynútiť opätovné preskenovanie knižnice médií aplikáciou VLC? Zrejme to bude chvíľu trvať.";
+
+// MARK: - Local Network
+
+"SMBV1_WARN_TITLE" = "Výstraha pre pripojenie SMBv1";
+"SMBV1_WARN_DESCRIPTION" = "Bol detegovaný starý protokol (SMBv1).\nNaozaj chcete pokračovať s SMBv1?\nOdporúčame vykonať aktualizáciu alebo zmenu nastavení servera.";
+"SMBV1_CONTINUE" = "Pokračovať s SMBv1";
+"SMBV1_NEXT_PROTOCOL" = "Vyskúšať SMBv2/v3";
+
+// MARK: - Preview labels
+
+"ENCODING" = "Kódovanie";
+
+// MARK: - Media groups
+
+"ADD_TO_MEDIA_GROUP" = "Pridať do skupiny médií";
+"ADD_TO_MEDIA_GROUP_HINT" = "Otvoriť menu na pridanie do skupiny médií";
+
+"MEDIA_GROUPS" = "skupiny médií";
+"MEDIA_GROUPS_DESCRIPTION" = "Vyberte názov pre vašu novú skupinu médií";
+"MEDIA_GROUPS_PLACEHOLDER" = "Názov skupiny médií";
+
+"REMOVE_FROM_MEDIA_GROUP" = "Odstrániť zo skupiny médií";
+"REMOVE_FROM_MEDIA_GROUP_HINT" = "Odstrániť vybrané zo skupiny médií";
+
+"MEDIA_GROUP_CREATION" = "Nová skupina médií";
+"MEDIA_GROUP_CREATION_HINT" = "Zobraziť upozornenie na vytvorenie playlistu";
+"MEDIA_GROUP_MOVE_TO_ROOT" = "Presunúť obsah na najvyššiu úroveň";
+"MEDIA_GROUP_MOVE_TO_ROOT_HINT" = "Presunúť obsah výberu na najvyššiu úroveň";
+
+"BUTTON_REGROUP" = "Preskupiť";
+"BUTTON_REGROUP_TITLE" = "Preskupiť výber";
+"BUTTON_REGROUP_HINT" = "Pokus o preskupenie jedného média automaticky";
+"BUTTON_REGROUP_DESCRIPTION" = "Naozaj sa chcete pokúsiť o automatické preskupenie jedného média?\nMôže to nejaký čas trvať.";
+
+// MARK: - Files.app persistence file
+"MEDIALIBRARY_FILES_PLACEHOLDER" = "Ak chcete pridať médium, umiestnite ho sem";
+"MEDIALIBRARY_ADDING_PLACEHOLDER" = "Pridáva sa...";
+
+// MARK: - tip jar
+"GIVE_TIP" = "Prispieť";
+"MAKE_DONATION_TITLE" = "Podporiť";
+"DONATION_DESCRIPTION" = "Vaše sponzorovanie nám umožní vylepšiť aplikáciu VLC-iOS a podporiť asociáciu VideoLAN.";
+"CANNOT_MAKE_PAYMENTS" = "Nemáte oprávnenie na platenie na tomto zariadení.";
+"PURCHASE_FAILED" = "Objednanie bolo neúspešné.";
+"SEND_DONATION" = "Pošlite svoj príspevok";
+"PURCHASE_SUCESS_TITLE" = "Príspevok bol odoslaný";
+"PURCHASE_SUCESS_DESCRIPTION" = "Ďakujeme Vám za Váš príspevok!";
+
+// MARK: - QueueViewController
+
+"PLAY_HINT" = "Prehrať";
+"PLAY_LABEL" = "Prehrať";
+"PLAY_NEXT_IN_QUEUE_HINT" = "Prehrať ďalšie vo fronte";
+"PLAY_NEXT_IN_QUEUE_LABEL" = "Prehrať ďalšie vo fronte";
+"APPEND_TO_QUEUE_HINT" = "Pripojiť do frontu";
+"APPEND_TO_QUEUE_LABEL" = "Pripojiť do frontu";
+
+"DISPLAY_AS" = "Zobraziť ako";
+
+/* New strings */
+"BRIGHTNESS_HINT" = "Vertikálne ovládanie jasu";
+"BRIGHTNESS_SLIDER" = "Pre zmenu jasu posúvajte vertikálne";
+
+/* New strings */
+"VOLUME_HINT" = "Vertikálne ovládanie hlasitosti";
+"VOLUME_SLIDER" = "Pre zmenu hlasitosti posúvajte vertikálne";
+
+// MARK: - AudioMiniPlayer playback controls menu
+"MENU_PLAYBACK_CONTROLS" = "Ovládače prehrávania";
+"MENU_REPEAT_DISABLED" = "Neopakovať";
+"MENU_REPEAT_SINGLE" = "Opakovať jedenkrát";
+"MENU_REPEAT_ALL" = "Opakovať všetko";
+
+// MARK: - ActionSheet
+
+"ACTIONSHEET_BACKGROUND_LABEL" = "Pozadie listu pre akciu";
+"ACTIONSHEET_BACKGROUND_HINT" = "List pre akciu odstránite dotykom.";
+
+// MARK: - Playback keyboard shortcuts
+
+"KEY_JUMP_BACKWARDS" = "Preskočiť dozadu";
+"KEY_JUMP_FORWARDS" = "Preskočiť dopredu";
+"KEY_INCREASE_PLAYBACK_SPEED" = "Zvýšiť rýchlosť prehrávania";
+"KEY_DECREASE_PLAYBACK_SPEED" = "Znížiť rýchlosť prehrávania";
+"KEY_RESET_PLAYBACK_SPEED" = "Reset rýchlosti prehrávania";
+
+// MARK: - TitleSelection
+
+"TITLESELECTION_BACKGROUND_LABEL" = "Pozadie pre výber titulu";
+"TITLESELECTION_BACKGROUND_HINT" = "Zobrazenie odstránite dotykom.";

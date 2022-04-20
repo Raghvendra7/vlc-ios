@@ -25,6 +25,7 @@ protocol ActionSheetDelegate {
     @objc func itemAtIndexPath(_ indexPath: IndexPath) -> Any?
     @objc optional func actionSheet(collectionView: UICollectionView,
                                     didSelectItem item: Any, At indexPath: IndexPath)
+    @objc optional func actionSheetDidFinishClosingAnimation(_ actionSheet: ActionSheet)
 }
 
 // MARK: ActionSheet
@@ -39,7 +40,7 @@ class ActionSheet: UIViewController {
 
     var action: ((_ item: Any) -> Void)?
 
-    private lazy var backgroundView: UIView = {
+    lazy var backgroundView: UIView = {
         let backgroundView = UIView()
         backgroundView.alpha = 0
         backgroundView.autoresizingMask = [.flexibleHeight, .flexibleWidth]
@@ -63,11 +64,19 @@ class ActionSheet: UIViewController {
         collectionView.dataSource = self
         collectionView.backgroundColor = PresentationTheme.current.colors.background
         collectionView.alwaysBounceVertical = true
-        collectionView.showsVerticalScrollIndicator = false
+        collectionView.showsVerticalScrollIndicator = true
+        collectionView.showsHorizontalScrollIndicator = false
+
         collectionView.register(ActionSheetCell.self,
                                 forCellWithReuseIdentifier: ActionSheetCell.identifier)
         collectionView.translatesAutoresizingMaskIntoConstraints = false
         return collectionView
+    }()
+
+    lazy var collectionWrapperView: UIView = {
+        let collectionWrapperView: UIView = UIView(frame: UIScreen.main.bounds)
+        collectionWrapperView.backgroundColor = PresentationTheme.current.colors.background
+        return collectionWrapperView
     }()
 
     private(set) lazy var headerView: ActionSheetSectionHeader = {
@@ -79,40 +88,78 @@ class ActionSheet: UIViewController {
         return headerView
     }()
 
+    private lazy var downGesture: UIPanGestureRecognizer = {
+        let downGesture = UIPanGestureRecognizer(target: self, action: #selector(handleDismiss(sender:)))
+        return downGesture
+    }()
+
     private lazy var mainStackView: UIStackView = {
         let mainStackView = UIStackView()
         mainStackView.spacing = 0
         mainStackView.axis = .vertical
         mainStackView.alignment = .center
         mainStackView.translatesAutoresizingMaskIntoConstraints = false
+        mainStackView.backgroundColor = .clear
+        mainStackView.addGestureRecognizer(downGesture)
         return mainStackView
     }()
 
     private lazy var maxCollectionViewHeightConstraint: NSLayoutConstraint = {
         let maxCollectionViewHeightConstraint = collectionView.heightAnchor.constraint(
-            lessThanOrEqualToConstant: (view.bounds.height / 2) - cellHeight)
+            lessThanOrEqualToConstant: maxCollectionViewHeight)
+        maxCollectionViewHeightConstraint.priority = .defaultHigh
         return maxCollectionViewHeightConstraint
     }()
 
     private lazy var collectionViewHeightConstraint: NSLayoutConstraint = {
-        guard let dataSource = dataSource else {
-            preconditionFailure("VLCActionSheet: Data source not set correctly!")
-        }
-
         let collectionViewHeightConstraint = collectionView.heightAnchor.constraint(
-            equalToConstant: CGFloat(dataSource.numberOfRows()) * cellHeight)
-        collectionViewHeightConstraint.priority = .required - 1
+            equalToConstant: collectionViewHeight)
+        collectionViewHeightConstraint.priority = .defaultLow
         return collectionViewHeightConstraint
     }()
 
+    let collectionViewEdgeInsets = UIEdgeInsets(top: 5, left: 0, bottom: 0, right: 0)
+
+    var collectionViewHeight: CGFloat {
+        let rowsCount: CGFloat = CGFloat(dataSource?.numberOfRows() ?? 0)
+        let collectionViewHeight = rowsCount * (cellHeight + collectionViewEdgeInsets.top)
+        return collectionViewHeight
+    }
+
+    var maxCollectionViewHeight: CGFloat {
+        let maxMargin: CGFloat = 75
+        let minCollectionViewHeight: CGFloat = cellHeight * 1.5 + collectionViewEdgeInsets.top * 2
+        let maxCollectionViewHeight = max(view.bounds.height - headerView.bounds.height - maxMargin, minCollectionViewHeight)
+        return maxCollectionViewHeight
+    }
+
+    var offScreenFrame: CGRect {
+        let y = headerView.cellHeight
+        let w = collectionView.frame.size.width
+        let h = collectionView.frame.size.height
+        return CGRect(x: w, y: y, width: w, height: h)
+    }
+
+    private var mainStackViewTranslation = CGPoint(x: 0, y: 0)
+
     override func updateViewConstraints() {
         super.updateViewConstraints()
+        updateCollectionViewContraints()
+    }
 
-        if let presentingViewController = presentingViewController, let dataSource = dataSource {
-            collectionViewHeightConstraint.constant = CGFloat(dataSource.numberOfRows()) * cellHeight + cellHeight / 2
-            maxCollectionViewHeightConstraint.constant = presentingViewController.view.frame.size.height / 2
-            collectionView.setNeedsLayout()
-            collectionView.layoutIfNeeded()
+    private func updateCollectionViewContraints() {
+        collectionViewHeightConstraint.constant = collectionViewHeight
+        maxCollectionViewHeightConstraint.constant = maxCollectionViewHeight
+        collectionView.setNeedsLayout()
+        collectionView.layoutIfNeeded()
+    }
+
+    private func updateCollectionViewScrollIndicatorVisibility() {
+        if maxCollectionViewHeight > collectionViewHeight {
+            collectionView.showsVerticalScrollIndicator = false
+        } else {
+            collectionView.showsVerticalScrollIndicator = true
+            collectionView.flashScrollIndicatorsIfNeeded()
         }
     }
 
@@ -141,13 +188,22 @@ class ActionSheet: UIViewController {
         view.addSubview(mainStackView)
 
         mainStackView.addArrangedSubview(headerView)
-        mainStackView.addArrangedSubview(collectionView)
+        mainStackView.addArrangedSubview(collectionWrapperView)
 
         backgroundView.frame = UIScreen.main.bounds
+        backgroundView.isAccessibilityElement = true
 
+        backgroundView.accessibilityLabel = NSLocalizedString("ACTIONSHEET_BACKGROUND_LABEL",
+                                                              comment: "")
+        backgroundView.accessibilityHint = NSLocalizedString("ACTIONSHEET_BACKGROUND_HINT",
+                                                             comment: "")
+
+        backgroundView.accessibilityTraits = .allowsDirectInteraction
+
+        setupCollectionWrapperView()
         setupMainStackViewConstraints()
         setupCollectionViewConstraints()
-        setuplHeaderViewConstraints()
+        setupHeaderViewConstraints()
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -166,6 +222,9 @@ class ActionSheet: UIViewController {
         // This is to avoid a horrible visual glitch!
         mainStackView.isHidden = false
 
+        updateCollectionViewContraints()
+        updateCollectionViewScrollIndicatorVisibility()
+
         let realMainStackView = mainStackView.frame
 
         mainStackView.frame.origin.y += mainStackView.frame.origin.y
@@ -177,6 +236,7 @@ class ActionSheet: UIViewController {
                        animations: {
                         [mainStackView, backgroundView] in
                         mainStackView.frame = realMainStackView
+                        mainStackView.transform = .identity
                         backgroundView.alpha = 1
         })
     }
@@ -185,10 +245,11 @@ class ActionSheet: UIViewController {
                                      with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
         coordinator.animate(alongsideTransition: { [weak self] _ in
-            self?.maxCollectionViewHeightConstraint.constant = size.height / 2
-            self?.collectionView.layoutIfNeeded()
+            self?.updateCollectionViewContraints()
             self?.setHeaderRoundedCorners()
-        })
+        }) { [weak self] _ in
+            self?.updateCollectionViewScrollIndicatorVisibility()
+        }
     }
 
     override func viewWillLayoutSubviews() {
@@ -198,26 +259,46 @@ class ActionSheet: UIViewController {
 
     @objc private func updateTheme() {
         collectionView.backgroundColor = PresentationTheme.current.colors.background
+        collectionWrapperView.backgroundColor = PresentationTheme.current.colors.background
         headerView.backgroundColor = PresentationTheme.current.colors.background
         headerView.title.textColor = PresentationTheme.current.colors.cellTextColor
-        for cell in collectionView.visibleCells {
-            if let cell = cell as? ActionSheetCell {
-                cell.backgroundColor = PresentationTheme.current.colors.background
-                cell.name.textColor = PresentationTheme.current.colors.cellTextColor
-            }
-        }
+        headerView.title.backgroundColor = PresentationTheme.current.colors.background
         collectionView.layoutIfNeeded()
     }
     
     func addChildToStackView(_ child: UIView) {
         mainStackView.addSubview(child)
     }
+
+    func updateDragDownGestureDelegate(to delegate: ActionSheet?) {
+        downGesture.delegate = delegate
+    }
+
+    func shouldDisableDragDownGesture(_ disable: Bool) {
+        downGesture.isEnabled = !disable
+    }
 }
 
 // MARK: Private setup methods
 
 private extension ActionSheet {
-    private func setuplHeaderViewConstraints() {
+    private func setupCollectionWrapperView() {
+        collectionWrapperView.addSubview(collectionView)
+        let bottomConstraint: NSLayoutConstraint
+        if #available(iOS 11, *) {
+            bottomConstraint = collectionView.bottomAnchor.constraint(equalTo: collectionWrapperView.safeAreaLayoutGuide.bottomAnchor)
+        } else {
+            bottomConstraint = collectionView.bottomAnchor.constraint(equalTo: collectionWrapperView.bottomAnchor)
+        }
+        NSLayoutConstraint.activate([
+            collectionView.topAnchor.constraint(equalTo: collectionWrapperView.topAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: collectionWrapperView.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: collectionWrapperView.trailingAnchor),
+            bottomConstraint
+        ])
+    }
+
+    private func setupHeaderViewConstraints() {
         NSLayoutConstraint.activate([
             headerView.heightAnchor.constraint(equalToConstant: headerView.cellHeight),
             headerView.widthAnchor.constraint(equalTo: view.widthAnchor),
@@ -235,7 +316,7 @@ private extension ActionSheet {
     private func setupMainStackViewConstraints() {
         NSLayoutConstraint.activate([
             // Extra padding for spring animation
-            mainStackView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: 10),
+            mainStackView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             mainStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             mainStackView.widthAnchor.constraint(equalTo: view.widthAnchor),
             mainStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
@@ -263,6 +344,7 @@ extension ActionSheet {
         self.action = action
     }
 
+
     @objc func removeActionSheet() {
         let realMainStackView = mainStackView.frame
 
@@ -281,7 +363,32 @@ extension ActionSheet {
                 mainStackView.isHidden = true
                 mainStackView.frame = realMainStackView
                 presentingViewController?.dismiss(animated: false)
+                self.delegate?.actionSheetDidFinishClosingAnimation?(self)
         })
+    }
+
+    @objc func handleDismiss(sender: UIPanGestureRecognizer) {
+        switch sender.state {
+        case .changed:
+            mainStackViewTranslation = sender.translation(in: mainStackView)
+            if mainStackViewTranslation.y < 0 {
+                return
+            }
+            UIView.animate(withDuration: 0.5, delay: 0, usingSpringWithDamping: 0.7, initialSpringVelocity: 1, options: .curveEaseOut, animations: {
+                self.mainStackView.transform = CGAffineTransform(translationX: 0, y: self.mainStackViewTranslation.y)
+            })
+        case .ended:
+            let halfHeight = mainStackView.frame.height / 2
+            if mainStackViewTranslation.y < halfHeight {
+                UIView.animate(withDuration: 0.5, delay: 0, usingSpringWithDamping: 0.7, initialSpringVelocity: 1, options: .curveEaseOut, animations: {
+                    self.mainStackView.transform = .identity
+                })
+            } else {
+                removeActionSheet()
+            }
+        default:
+            break
+        }
     }
 }
 
@@ -292,6 +399,10 @@ extension ActionSheet: UICollectionViewDelegateFlowLayout {
                         layout collectionViewLayout: UICollectionViewLayout,
                         sizeForItemAt indexPath: IndexPath) -> CGSize {
         return CGSize(width: collectionView.frame.width, height: cellHeight)
+    }
+
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, insetForSectionAt section: Int) -> UIEdgeInsets {
+        return collectionViewEdgeInsets
     }
 }
 
@@ -326,5 +437,11 @@ extension ActionSheet: UICollectionViewDataSource {
                                           cellForItemAt: indexPath)
         }
         preconditionFailure("VLCActionSheet: No data source")
+    }
+}
+
+extension ActionSheet: UIGestureRecognizerDelegate {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        return true
     }
 }

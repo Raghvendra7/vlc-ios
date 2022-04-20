@@ -1,10 +1,8 @@
-"STORE_DESCRIPTION" = "VLC למערכת iOS הוא הסבה של נגן המדיה החופשי VLC להתקני iPad, iPhone ו־iPod touch.\nהנגן יכול לנגן את כל הסרטים, הסדרות והמוזיקה שלך ברוב תסדירי המדיה ישירות וללא המרה.\nהנגן מאפשר לך לסנכרן קבצים עם DropBox, GDrive, OneDrive, Box, iCloud Drive, iTunes, הורדות ישירות ושיתוף באמצעות WiFi לרבות הזרמה ישירה משרתי מדיה מסוג SMB, FTP, UPnP/DLNA וקישור רגיל.\nל־VLC יש תמיכה בכתוביות מתקדמות לרבות תאימות מלאה ב־SSA, שמע רב ערוצי ובקרת מהירות נגינה.\n\nVLC לסביבת iOS הנו נגן חינמי לחלוטין ובקוד פתוח.";
+"STORE_DESCRIPTION" = "VLC הוא נגן מולטימדיה חופשי ובקוד פתוח למגוון מערכות.\nהנגן יכול לנגן את כל הסרטים, התוכניות והמוזיקה שלך ברוב תצורות הקבצים ישירות ללא המרה.\nהוא מאפשר לסנכרן קבצים מול Dropbox,‏ GDrive, OneDrive,‏ Box,‏ iCloud Drive,‏ iTunes, הורדות ישירות ודרך שיתוף אלחוטי לרבות הזרמה מ־SMB,‏ FTP,‏ SFTP,‏ NFS,‏ UPnP/DLNA, משרתי מדיה ומהאינטרנט.\nנגן VLC מציע תמיכה בכתוביות מתקדמות לרבות תאימות מלאה ל־SSA, שמע במגוון ערוצים, בקרת מהירות נגינה ופענוח דרך Chromecast.\n\nVLC הוא חופשי לחלוטין ובקוד פתוח.";
 
-"STORE_DESCRIPTION_TV" = "נגן המדיה VLC הנו נגן מולטימדיה חוצה פלטפורמות חופשי ובקוד פתוח.\nהנגן יכול לנגן את כל הסרטים, הסדרות והמוזיקה שלך ברוב תסדירי המדיה ישירות וללא המרה.\nהנגן מאפשר לך להזרים מדיה משירותי ענן (Dropbox, OneDrive, Box), לנגן מרחוק דרך ה־Mac או המחשב שלך באמצעות מנשק דפדפני לרבות הזרמה ישירה משרתי מדיה מסוג SMB, FTP, UPnP/DLNA וקישור רגיל.\nל־VLC יש תמיכה בכתוביות מתקדמות לרבות תאימות מלאה ב־SSA, שמע רב ערוצי ובקרת מהירות נגינה.\n\nVLC לסביבת iOS הנו נגן חינמי לחלוטין ובקוד פתוח.\n\nנתוני העל ועטיפות האלבומים מסופקים על ידי TMDb ו־Hatchet, שהם מסדי נתונים לסרטים ולמוזיקה בתחזוקה קהילתית.";
+"STORE_DESCRIPTION_TV" = "VLC הוא נגן מולטימדיה חופשי ובקוד פתוח למגוון מערכות.\nהנגן יכול לנגן את כל הסרטים, התוכניות והמוזיקה שלך ברוב תצורות הקבצים ישירות ללא המרה.\nהוא מאפשר נגינה מרחוק דרך ה־Mac או המחשב האישי שלך דרך מנשק דפדפן לרבות הזרמה מ־SMB,‏ FTP,‏ SFTP,‏ NFS,‏ UPnP/DLNA, משרתי מדיה ומהאינטרנט.\nנגן VLC מציע תמיכה בכתוביות מתקדמות לרבות תאימות מלאה ל־SSA, שמע במגוון ערוצים, בקרת מהירות נגינה ופענוח דרך Chromecast.\n\nVLC הוא חופשי לחלוטין ובקוד פתוח.\n\nיצירות האומנות סופקו על ידי TMDb, שהוא מסד נתונים של סרטים שמתוחזק על ידי הקהילה.";
 
-"CHOOSE_AUDIO_TRACK" = "בחירת רצועת שמע";
-"CHOOSE_SUBTITLE_TRACK" = "בחירת רצועת כתוביות";
-"OPEN_TRACK_PANEL" = "פתח בחירת ערוצים";
+"UNKNOWN_TRACK_TYPE" = "סוג רצועה בלתי ידוע";
 "CHOOSE_TITLE" = "בחר כותר";
 "CHOOSE_CHAPTER" = "בחר פרקים";
 "CHAPTER_SELECTION_TITLE" = "פרקים";
@@ -35,9 +33,9 @@
 "VFILTER_SATURATION" = "רוויה";
 "VFILTER_GAMMA" = "גאמה";
 
+"PRESET_PREAMP_SETTING" = "הגדרות ערכה מוגדרת / הגברה טרומית";
 "PREAMP" = "Preamp";
-"DB_FORMAT" = "%i dB";
-"CHOOSE_EQUALIZER_PROFILES" = "בחר פרופיל איקולייזר";
+"SNAP_BANDS" = "הצמדת ערוצים";
 
 "PLAYBACK_FAILED" = "הנגינה נכשלה";
 "PLEASE_WAIT" = "אנא המתן";
@@ -68,14 +66,16 @@
 "BUTTON_CONTINUE" = "המשך";
 "BUTTON_SET" = "הגדרה";
 "BUTTON_RESET" = "איפוס";
+"BUTTON_RESCAN" = "סריקה מחדש";
 "PRIVATE_PLAYBACK_TOGGLE" = "נגינה פרטית";
 "SCAN_SUBTITLE_TOGGLE" = "חיפוש אחר כתוביות (http בלבד)";
 
 "BUTTON_RENDERER" = "התקני שידור";
 "BUTTON_RENDERER_HINT" = "הצגת תפריט עם התקני השידור הזמינים";
+"BUTTON_AIRPLAY" = "AirPlay או Bluetooth";
+"BUTTON_AIRPLAY_HINT" = "הצגת תפריט של התקני AirPlay או Bluetooth זמינים";
 
 "UPGRADING_LIBRARY" = "ספריית המדיה משתדרגת";
-"UNKNOWN" = "לא ידוע";
 
 "OPEN_NETWORK" = "פתיחת תזרים רשת";
 "NETWORK_TITLE" = "תזרים רשת";
@@ -127,6 +127,9 @@
 "LOCAL_SERVER_CONNECTION_FAILED_TITLE" = "החיבור לשרת נכשל";
 "LOCAL_SERVER_CONNECTION_FAILED_MESSAGE" = "נא לבדוק את כתובת השרת ואת פרטי הגישה שלך";
 
+"FILES_APP_CELL_TITLE" = "קבצים מקומיים";
+"FILES_APP_CELL_SUBTITLE" = "לפתוח קובץ מבלי להעתיק אותו ל־VLC";
+
 "CLOUD_SERVICES" = "שרותי ענן";
 "LOGIN" = "התחבר";
 "LOGGED_IN" = "מחובר";
@@ -175,9 +178,15 @@
 "OFF" = "כבוי";
 
 "EMPTY_LIBRARY" = "ספריית המדיה ריקה";
-"EMPTY_LIBRARY_LONG" = "לצורך נגינה, ניתן להזרים מדיה משרת ברשת המקומית שלך, מהענן או לסנכרן מדיה מההתקן שלך באמצעות iTunes, להעלות ב־WiFi או משירותי ענן.";
+"EMPTY_LIBRARY_LONG" = "לצורך נגינה, ניתן להזרים מדיה משרת ברשת המקומית שלך, מהענן או לסנכרן מדיה מההתקן שלך באמצעות iTunes, להעלות ב־Wi-Fi או משירותי ענן.";
 
-"PLAYBACK_SCRUB_HELP" = "יש להחליק את האצבע כלפי מטה כדי להתאים את מהירות הגלילה.";
+"EMPTY_NO_PLAYLISTS" = "רשימות נגינה";
+"EMPTY_NO_PLAYLISTS_DESCRIPTION" = "כדי ליצור רשימות נגינה, יש להיכנס למצב עריכה בלשוניות תוכן הווידאו או השמע ולבחור את המדיה המועדפת עליך.\nניתן גם לסנכרן רשימות נגינה קיימות ממכשירים אחרים שלך או מהאינטרנט.";
+
+"EMPTY_PLAYLIST" = "רשימת נגינה ריקה";
+"EMPTY_PLAYLIST_DESCRIPTION" = "הוספת מדיה בעת עריכת הקטגוריות בהתאמה.";
+
+"PLAYBACK_SCRUB_HELP" = "יש להחליק את האצבע כלפי מעלה כדי להתאים את קצב השיוט.";
 "PLAYBACK_SCRUB_HIGH" = "גלילה במהירות גבוהה";
 "PLAYBACK_SCRUB_HALF" = "גלילה במהירות בינונית";
 "PLAYBACK_SCRUB_QUARTER" = "גלילה ברבע מהמהירות";
@@ -185,8 +194,7 @@
 "PLAYBACK_POSITION" = "מיקום הנגינה";
 "VIDEO_FILTER" = "מסנני וידאו";
 "VIDEO_FILTER_RESET_BUTTON" = "איפוס מסנני וידאו";
-"VIDEO_ASPECT_RATIO_BUTTON" = "החלפת יחס התצוגה של הווידאו";
-"PLAY_PAUSE_BUTTON" = "הפעלה או השהיה של הנגינה הנוכחית";
+"VIDEO_ASPECT_RATIO_BUTTON" = "יחס התצוגה של הווידאו";
 "BWD_BUTTON" = "קפיצה אחורה";
 "FWD_BUTTON" = "קפיצה קדימה";
 "PLAY_BUTTON" = "נגן";
@@ -194,14 +202,16 @@
 "PREV_BUTTON" = "הקודם";
 "PLAY_ALL_BUTTON" = "לנגן הכול";
 
+"RESET_VIDEO_FILTERS" = "לאפס את מסנני הווידאו?";
+"RESET_PLAYBACK_SPEED" = "לאפס את מהירות הנגינה?";
+"RESET_EQUALIZER" = "לאפס את הגדרות האקוולייזר?";
+"RESET_SLEEP_TIMER" = "לאפס את מתזמן השינה?";
+
 "VERSION_FORMAT" = "גרסה: %@";
 "BASED_ON_FORMAT" = "מבוסס על:<br />%@";
 
 "NEW" = "חדש";
 
-"BUG_REPORT_TITLE" = "דיווח על תקלה";
-"BUG_REPORT_MESSAGE" = "האם ליצור דיווח על תקלה?";
-"BUG_REPORT_BUTTON" = "הפעלת ספארי";
 
 "VO_VIDEOPLAYER_TITLE" = "נגן וידאו";
 "VO_VIDEOPLAYER_DOUBLETAP" = "יש לגעת פעמיים כדי להציג או להסתיר את פקדי הנגינה";
@@ -226,30 +236,33 @@
 "NO_SERVER_FOUND" = "שרת לא נמצא";
 "NO_RECENT_STREAMS" = "שום ערוץ לא נוגן לאחרונה";
 
-"WEBINTF_TITLE" = "שיתוף באמצעות WiFi";
+"WEBINTF_TITLE" = "משותף דרך רשת אלחוטית";
 "WEBINTF_DROPFILES" = "גרירת קבצים";
 "WEBINTF_DROPFILES_LONG" = "ניתן להשליך קבצים לכאן כדי להוסיף אותם ל%@ שלך.<br>או ללחוץ על לחצן ה־„+“ כדי להשתמש בחלונית בחירת הקבצים.";
 "WEBINTF_DOWNLOADFILES" = "הורדת קבצים";
 "WEBINTF_DOWNLOADFILES_LONG" = "עליך פשוט ללחוץ על מה שברצונך להוריד מה%@ שלך.";
+"WEBINTF_ADDRESS_COPIED" = "הכתובת הועתקה ללוח הגזירים";
 "WEBINTF_TITLE_ATV" = "נגינה מרוחקת";
 "WEBINTF_DROPFILES_LONG_ATV" = "גרור לחלון קבצים שאת/ה רוצה לנגן ב %@.<br>או לחץ/י על כפתור ה \"+\| להשתמש בממשק הוספת הקבצים.";
 "WEBINTF_URL_SENT" = "כתובת URL נשלחה בהצלחה.";
 "WEBINTF_URL_EMPTY" = "כתובת URL לא יכולה להיות ריקה.";
 "WEBINTF_URL_INVALID" = "כתובת URL לא תקינה.";
+"WEBINTF_AUTH_REQUIRED" = "נא להקליד את קוד הגישה שהגדרת ב־VLC ל־iOS:";
+"WEBINTF_AUTH_WRONG_PASSCODE" = "קוד גישה שגוי.<br>ניסיונות שנותרו:";
+"WEBINTF_AUTH_BANNED" = "הקלדת יותר מדי קודים שגויים.<br>נא להפעיל את VLC ל־iOS מחדש ולנסות שוב.";
 
 
 
 "DURATION" = "משך";
 "TITLE" = "כותר";
 
-// strings from VLCKit
+// MARK: - strings from VLCKit
 
-// accessibility labels for the playlist
+// MARK: - accessibility labels for the playlist
 
 
-"LONGPRESS_TO_STOP" = "לחיצה ארוכה להפסקת נגינה.";
 
-// ATV specific
+// MARK: - ATV specific
 "AUDIO_INFO_VC_TITLE" = "פרטי השמע";
 "CLOUD_LOGIN_LONG" = "כדי לגשת לשירותי ענן יש להיכנס ל־iCloud גם ב־Apple TV וגם בהתקן ה־iOS עם אותו ה־Apple ID ולהפעיל שיתוף מפתחות (Keychain Sharing) בהגדרות המערכת.\nלאחר מכן, עליך להיכנס לספק הענן לבחירתך באמצעות היישומון של VLC שבהתקן ה־iOS שלך. לבסוף, יש לבחור אותו על המסך.";
 "ENTER_URL" = "הכנס כתובת URL לנגינה";
@@ -259,6 +272,7 @@
 "CACHED_MEDIA_LONG" = "מדיה המוצגת כאן נשמרת מקומית על האפל טיוי שלך. שים/י לב  כי מדיה זו יכולה להימחק על ידי מערכת ההפעלה ללא כל התראה בכל פעם ש VLC לא רץ במקרה ולמכשיר נגמר המקום לאחסון מידע.";
 "DOWNLOAD_SUBS_FROM_OSO" = "הורד כתוביות מ OpenSubtitles.org...";
 "FOUND_SUBS" = "נמצאו כתוביות";
+"NO_SUB_FOUND_OSO" = "לא נמצאו כתוביות בפריט המדיה שלך „%@”.";
 "USE_SPDIF" = "שימוש בהעברה ישירה (S/PDIF)";
 
 "PLAYBACK" = "נגינה";
@@ -266,16 +280,23 @@
 "REPEAT_DISABLED" = "מנוטרל";
 "REPEAT_SINGLE" = "בודד";
 "REPEAT_FOLDER" = "תיקייה";
+"SHUFFLE" = "ערבוב";
 
-// Local Network Service Names
+"RESET_NETWORK_STREAM_LIST_TITLE" = "איפוס הרשימה";
+"RESET_NETWORK_STREAM_LIST_TEXT" = "איפוס הרשימה של תזרימי הרשת שנוגנו לאחרונה לצמיתות.";
+
+// MARK: - Local Network Service Names
 "UPNP_LONG" = "Plug'n'Play אוניברסלי (UPnP)";
 "UPNP_SHORT" = "UPnP";
 
 "PLEX_LONG" = "שרת המדיה Plex (דרך Bonjour)";
 "PLEX_SHORT" = "Plex";
 
-"FTP_LONG" = "פרוטוקול להעברת קבצים (FTP)";
 "FTP_SHORT" = "FTP";
+"SFTP_SHORT" = "SFTP";
+
+"NFS_LONG" = "מערכת קבצים רשתית (NFS)";
+"NFS_SHORT" = "NFS";
 
 "BONJOUR_FILE_SERVERS" = "שרת קבצים BONJOUR";
 "DSM_WORKGROUP" = "קבוצת עבודה";
@@ -285,10 +306,12 @@
 // Insert %@ where play-pause-glyph should be placed
 "DELETE_ITEM_HINT" = "לחץ על %@ למחיקה"; /* Insert %@ where play-pause-glyph should be placed */
 
-"DELETE_MESSAGE" = "יש לאשר את מחיקת הקבצים הנבחרים";
-"DELETE_TITLE" = "מחיקת הקבצים הנבחרים";
+"DELETE_MESSAGE" = "אישור מחיקת הבחירה";
+"DELETE_MESSAGE_PLAYLIST" = "למחוק את רשימת הנגינה הנבחרת?\nהמדיה שברשימה לא תימחק.";
+"DELETE_MESSAGE_PLAYLIST_CONTENT" = "להסיר את המדיה הנבחרת מהרשימה?\nקובץ המדיה לא יימחק מהכונן.";
+"DELETE_TITLE" = "מחיקת הבחירה";
 
-//Drag and Drop
+// MARK: - Drag and Drop
 "THIS_FILE" = "הקובץ הזה";
 "NOT_SUPPORTED_FILETYPE" = "%@ אינו סוג קובץ שנתמך על ידי VLC";
 "FILE_EXISTS" = "%@ כבר קיים";
@@ -303,22 +326,26 @@
 "SEARCH" = "חיפוש";
 "VIDEO" = "וידאו";
 
-// MediaViewController Swipable Header
+// MARK: - MediaViewController Swipable Header
 "ALBUMS" = "אלבומים";
 "ARTISTS" = "אמנים";
 "EPISODES" = "פרקים";
 "GENRES" = "סגנונות";
-"MOVIES" = "סרטים";
+"ALL_VIDEOS" = "כל הסרטונים";
 "SONGS" = "שירים";
 "PLAYLISTS" = "רשימות נגינה";
+"VIDEO_GROUPS" = "קבוצות וידאו";
 
 "MODIFIED_DATE" = "מועד שינוי אחרון";
 "NAME" = "שם";
 
-//EDIT
+// MARK: - EDIT
 
 "BUTTON_EDIT" = "עריכה";
 "BUTTON_EDIT_HINT" = "מצב עריכה";
+
+"BUTTON_SELECT_ALL" = "בחירה בהכול";
+"BUTTON_SELECT_ALL_HINT" = "לבחור את כל פריטי המדיה שקיימים בתצוגה הזאת";
 
 "ADD_TO_PLAYLIST" = "הוספה לרשימת הנגינה";
 "ADD_TO_PLAYLIST_HINT" = "פתיחת תפריט ההוספה לרשימת נגינה";
@@ -338,7 +365,7 @@
 "RENAME_HINT" = "שינוי שמם של הקבצים הנבחרים";
 "DELETE_HINT" = "מחיקת הקבצים הנבחרים";
 
-// Sort
+// MARK: - Sort
 
 "BUTTON_SORT" = "מיון";
 "BUTTON_SORT_HINT" = "הצגת גיליון פעולת מיון";
@@ -346,8 +373,9 @@
 "DESCENDING_LABEL" = "בסדר יורד";
 "DESCENDING_SWITCH_LABEL" = "בסדר עולה או יורד";
 "DESCENDING_SWITCH_HINT" = "מיון הקשר בסדר עולה או יורד";
+"GRID_LAYOUT" = "פריסת רשת";
 
-// VLCMediaLibraryKit - Sorting Criteria
+// MARK: - VLCMediaLibraryKit - Sorting Criteria
 
 "ALPHA" = "אלפבית";
 "DURATION" = "משך";
@@ -360,21 +388,156 @@
 "ALBUM" = "אלבום";
 "FILENAME" = "שם קובץ";
 "TRACK_NUMBER" = "מספר רצועה";
+"NB_AUDIO" = "מספר שמע";
+"NB_MEDIA" = "מספר מדיה";
+"NB_VIDEO" = "מספר וידאו";
 
-// VLCNetworkLoginTVViewController
+// MARK: - VLCNetworkLoginTVViewController
 
 "NO_SAVING_DATA" = "שום דבר לא נמצא";
 
-// MediaCollectionViewCell
+// MARK: - MediaCollectionViewCell
 
 "UNKNOWN_ARTIST" = "אמן לא ידוע";
 "VARIOUS_ARTIST" = "מגוון אמנים";
 "UNKNOWN_ALBUM" = "אלבום לא ידוע";
 
-/* New strings */
+// MARK: - VideoPlayerControls
+
+"SUBTITLE_AND_TRACK_BUTTON" = "כתוביות ורצועות שמע";
+"SUBTITLE_AND_TRACK_HINT" = "בחירת כתוביות או רצועות שמע";
+
+"DVD_BUTTON" = "DVD";
+"DVD_HINT" = "מנשק DVD";
+
+"ROTATION_LOCK_BUTTON" = "נעילת הטיה";
+"ROTATION_LOCK_HINT" = "נעילת הווידאו להטיה הנוכחית";
+
+"REPEAT_HINT" = "לחזור על חלק מהמדיה";
+
+"BACKWARD_BUTTON" = "אחורה";
+"BACKWARD_HINT" = "לקפוץ אחורה";
+
+"PREVIOUS_BUTTON" = "הקודם";
+"PREVIOUS_HINT" = "המדיה הקודמת";
+
+"PLAY_PAUSE_BUTTON" = "לנגן או להשהות";
+"PLAY_PAUSE_HINT" = "לנגן או להשהות את הנגינה הנוכחית";
+
+"STOP_BUTTON" = "עצירה";
+
+"NEXT_HINT" = "המדיה הבאה";
+
+"FORWARD_BUTTON" = "קדימה";
+"FORWARD_HINT" = "קפיצה קדימה";
+
 "INTERFACE_LOCK_BUTTON" = "נעילת המנשק";
-"INTERFACE_LOCK_HINT" = "השבתת פקדי מנשק";
+
+"SHUFFLE_HINT" = "ערבוב רשימת המדיה";
+
+"VIDEO_ASPECT_RATIO_BUTTON" = "יחס התצוגה של הווידאו";
+"VIDEO_ASPECT_RATIO_HINT" = "להחליף את יחס התצוגה של הסרטון הנוכחי";
+
 "MORE_OPTIONS_BUTTON" = "עוד";
 "MORE_OPTIONS_HINT" = "הצגת פקדים לאפשרויות נוספות";
-"REPEAT_MODE_HINT" = "להחליף את מצב החזרה של הפריט הנוכחי";
-"VIDEO_ASPECT_RATIO_HINT" = "להחליף את יחס התצוגה של הסרטון הנוכחי";
+
+"PLAYER_WARNING_SUBTITLE_CAST_TITLE" = "אין תמיכה בכתוביות";
+"PLAYER_WARNING_SUBTITLE_CAST_DESCRIPTION" = "עדיין אין תמיכה בכתוביות בזמן שידור.";
+
+// MARK: - MediaMoreOptionsActionSheet
+"EQUALIZER_CELL_TITLE" = "אקולייזר";
+"MORE_OPTIONS_HEADER_TITLE" = "אפשרויות וידאו";
+
+// MARK: - Settings - Force rescan alert
+"FORCE_RESCAN_TITLE" = "אילוץ סריקת ספריית המדיה מחדש";
+"FORCE_RESCAN_MESSAGE" = "לאלץ את VLC לסרוק את תיקיית המדיה שלך מחדש?\nפעולה זו עשויה לארוך זמן מה.";
+
+// MARK: - Local Network
+
+"SMBV1_WARN_TITLE" = "אזהרת חיבור SMBv1";
+"SMBV1_WARN_DESCRIPTION" = "זיהינו פרוטוקול ישן (SMBv1).\nלהמשיך עם SMBv1?\nאנו ממליצים לשדרג או לערוך את הגדרות השרת שלך.";
+"SMBV1_CONTINUE" = "להמשיך עם SMBv1";
+"SMBV1_NEXT_PROTOCOL" = "לנסות SMBv2/v3";
+
+// MARK: - Preview labels
+
+"ENCODING" = "קידוד";
+
+// MARK: - Media groups
+
+"ADD_TO_MEDIA_GROUP" = "הוספה לקבוצת מדיה";
+"ADD_TO_MEDIA_GROUP_HINT" = "פתיחת תפריט ההוספה לקבוצת מדיה";
+
+"MEDIA_GROUPS" = "קבוצות מדיה";
+"MEDIA_GROUPS_DESCRIPTION" = "נא לבחור כותרת לקבוצת המדיה החדשה שלך";
+"MEDIA_GROUPS_PLACEHOLDER" = "כותרת קבוצת מדיה";
+
+"REMOVE_FROM_MEDIA_GROUP" = "הסרה מקבוצת מדיה";
+"REMOVE_FROM_MEDIA_GROUP_HINT" = "הסרת הבחירה מקבוצת המדיה";
+
+"MEDIA_GROUP_CREATION" = "קבוצת מדיה חדשה";
+"MEDIA_GROUP_CREATION_HINT" = "הצגת התראה ליצירת רשימת נגינה";
+"MEDIA_GROUP_MOVE_TO_ROOT" = "העברת תוכן לרמה עליונה";
+"MEDIA_GROUP_MOVE_TO_ROOT_HINT" = "העברת תוכן הבחירה לרמה העליונה";
+
+"BUTTON_REGROUP" = "קיבוץ מחדש";
+"BUTTON_REGROUP_TITLE" = "קיבוץ הבחירה מחדש";
+"BUTTON_REGROUP_HINT" = "לנסות לקבץ מדיה בודדת מחדש אוטומטית";
+"BUTTON_REGROUP_DESCRIPTION" = "לנסות לקבץ מדיה בודדת מחדש אוטומטית?\nפעולה זו עלולה לארוך זמן מה";
+
+// MARK: - Files.app persistence file
+"MEDIALIBRARY_FILES_PLACEHOLDER" = "יש להציב כאן מדיה כדי להוסיף אותה";
+"MEDIALIBRARY_ADDING_PLACEHOLDER" = "מתווספת…";
+
+// MARK: - tip jar
+"GIVE_TIP" = "להעניק טיפ";
+"MAKE_DONATION_TITLE" = "לתרום";
+"DONATION_DESCRIPTION" = "המימון שלך יאפשר לשפר את היישומון VLC-iOS ולתמוך באיגוד VideoLAN.";
+"CANNOT_MAKE_PAYMENTS" = "אסור לך לשלם דרך המכשיר הזה.";
+"PURCHASE_FAILED" = "הרכישה נכשלה.";
+"SEND_DONATION" = "שליחת התרומה שלך";
+"PURCHASE_SUCESS_TITLE" = "התרומה נשלחה";
+"PURCHASE_SUCESS_DESCRIPTION" = "תודה רבה על התרומה שלך!";
+
+// MARK: - QueueViewController
+
+"PLAY_HINT" = "לנגן";
+"PLAY_LABEL" = "לנגן";
+"PLAY_NEXT_IN_QUEUE_HINT" = "לנגן את הבא בתור";
+"PLAY_NEXT_IN_QUEUE_LABEL" = "לנגן את הבא בתור";
+"APPEND_TO_QUEUE_HINT" = "להוסיף לסוף התור";
+"APPEND_TO_QUEUE_LABEL" = "להוסיף לסוף התור";
+
+"DISPLAY_AS" = "להציג בתור";
+
+/* New strings */
+"BRIGHTNESS_HINT" = "בקרת בהירות אנכית";
+"BRIGHTNESS_SLIDER" = "יש להחליק אנכית כדי לשנות את רמת הבהירות";
+
+/* New strings */
+"VOLUME_HINT" = "בקרת בהירות אנכית";
+"VOLUME_SLIDER" = "יש להחליק אנכית כדי לשנות את עצמת השמע";
+
+// MARK: - AudioMiniPlayer playback controls menu
+"MENU_PLAYBACK_CONTROLS" = "פקדי נגינה";
+"MENU_REPEAT_DISABLED" = "ללא חזרה";
+"MENU_REPEAT_SINGLE" = "חזרה על אחד";
+"MENU_REPEAT_ALL" = "חזרה על הכול";
+
+// MARK: - ActionSheet
+
+"ACTIONSHEET_BACKGROUND_LABEL" = "רקע גיליון הפעולות";
+"ACTIONSHEET_BACKGROUND_HINT" = "נגיעה תסיר את גיליון הפעולות.";
+
+// MARK: - Playback keyboard shortcuts
+
+"KEY_JUMP_BACKWARDS" = "לקפוץ אחורה";
+"KEY_JUMP_FORWARDS" = "לקפוץ קדימה";
+"KEY_INCREASE_PLAYBACK_SPEED" = "הגברת מהירות הנגינה";
+"KEY_DECREASE_PLAYBACK_SPEED" = "האטת מהירות הנגינה";
+"KEY_RESET_PLAYBACK_SPEED" = "איפוס מהירות הנגינה";
+
+// MARK: - TitleSelection
+
+"TITLESELECTION_BACKGROUND_LABEL" = "רקע בחירת כותרת";
+"TITLESELECTION_BACKGROUND_HINT" = "נגיעה מסירה את התצוגה.";

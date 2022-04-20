@@ -11,12 +11,12 @@
  *****************************************************************************/
 import UIKit
 
-@objc(VLCApperanceManager)
+@objc(VLCAppearanceManager)
 class AppearanceManager: NSObject {
 
     @objc class func setupAppearance(theme: PresentationTheme = PresentationTheme.current) {
         // Change the keyboard for UISearchBar
-        UITextField.appearance().keyboardAppearance = theme == PresentationTheme.darkTheme ? .dark : .light
+        UITextField.appearance().keyboardAppearance = theme.isDark ? .dark : .light
         // For the cursor
         UITextField.appearance().tintColor = theme.colors.orangeUI
 
@@ -27,24 +27,60 @@ class AppearanceManager: NSObject {
         UINavigationBar.appearance().barTintColor = theme.colors.navigationbarColor
         UINavigationBar.appearance(whenContainedInInstancesOf: [VLCPlaybackNavigationController.self]).barTintColor = nil
         UINavigationBar.appearance().tintColor = theme.colors.orangeUI
-        UINavigationBar.appearance().titleTextAttributes = [NSAttributedString.Key.foregroundColor: theme.colors.navigationbarTextColor]
+        UINavigationBar.appearance().titleTextAttributes = [.foregroundColor: theme.colors.navigationbarTextColor]
 
         if #available(iOS 11.0, *) {
             UINavigationBar.appearance().prefersLargeTitles = true
             UINavigationBar.appearance(whenContainedInInstancesOf: [VLCPlaybackNavigationController.self]).prefersLargeTitles = false
-            UINavigationBar.appearance().largeTitleTextAttributes = [NSAttributedString.Key.foregroundColor: theme.colors.navigationbarTextColor]
+            UINavigationBar.appearance().largeTitleTextAttributes = [.foregroundColor: theme.colors.navigationbarTextColor]
         }
+
+        let selectedBackgroundView = UIView()
+        selectedBackgroundView.backgroundColor = theme.colors.mediaCategorySeparatorColor
+        UITableViewCell.appearance().selectedBackgroundView = selectedBackgroundView
+
         // For the edit selection indicators
         UITableView.appearance().tintColor = theme.colors.orangeUI
         UISegmentedControl.appearance().tintColor = theme.colors.orangeUI
         UISwitch.appearance().onTintColor = theme.colors.orangeUI
         UISearchBar.appearance().barTintColor = .white
 
-        UITabBar.appearance().tintColor = theme.colors.orangeUI
+        UILabel.appearance(whenContainedInInstancesOf: [UISegmentedControl.self]).numberOfLines = 0
+        UILabel.appearance(whenContainedInInstancesOf: [UISegmentedControl.self]).lineBreakMode = .byWordWrapping
 
-        UIPageControl.appearance().backgroundColor = theme.colors.background
+        UITabBar.appearance().tintColor = theme.colors.orangeUI
+        if #available(iOS 10.0, *) {
+            UITabBar.appearance().unselectedItemTintColor = theme.colors.cellDetailTextColor
+        }
+
         UIPageControl.appearance().pageIndicatorTintColor = .lightGray
         UIPageControl.appearance().currentPageIndicatorTintColor = theme.colors.orangeUI
+    }
+
+    @objc class func setupUserInterfaceStyle(theme: PresentationTheme = PresentationTheme.current) {
+        if #available(iOS 13.0, *) {
+            UIView.animate(withDuration: 0.55, delay: 0,
+                           usingSpringWithDamping: 1,
+                           initialSpringVelocity: 0,
+                           options: .curveEaseIn,
+                           animations: {
+                if UserDefaults.standard.integer(forKey: kVLCSettingAppTheme) == kVLCSettingAppThemeSystem {
+                    UIApplication.shared.keyWindow?.overrideUserInterfaceStyle = .unspecified
+                } else {
+                    UIApplication.shared.keyWindow?.overrideUserInterfaceStyle = theme.isDark ? .dark : .light
+                }
+            })
+        }
+    }
+
+    @available(iOS 13.0, *)
+    @objc class func navigationbarAppearance() -> UINavigationBarAppearance {
+        let navBarAppearance = UINavigationBarAppearance()
+        navBarAppearance.configureWithOpaqueBackground()
+        navBarAppearance.backgroundColor = PresentationTheme.current.colors.navigationbarColor
+        navBarAppearance.titleTextAttributes = [.foregroundColor: PresentationTheme.current.colors.navigationbarTextColor]
+        navBarAppearance.largeTitleTextAttributes = [.foregroundColor: PresentationTheme.current.colors.navigationbarTextColor]
+        return navBarAppearance
     }
 }
 

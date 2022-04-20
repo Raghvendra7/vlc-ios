@@ -14,6 +14,8 @@
 #import "VLCCloudStorageTableViewCell.h"
 #import "VLCNetworkImageView.h"
 
+#import "VLC-Swift.h"
+
 @implementation VLCCloudStorageTableViewCell
 
 + (VLCCloudStorageTableViewCell *)cellWithReuseIdentifier:(NSString *)ident
@@ -26,6 +28,9 @@
     cell.titleLabel.hidden = YES;
     cell.subtitleLabel.hidden = YES;
     cell.folderTitleLabel.hidden = YES;
+
+    [[NSNotificationCenter defaultCenter] addObserver:cell selector:@selector(updateAppearanceForColorScheme) name:kVLCThemeDidChangeNotification object:nil];
+    [cell updateAppearanceForColorScheme];
 
     return cell;
 }
@@ -106,7 +111,7 @@
     }
 
     if (duration > 0) {
-        VLCTime *time = [VLCTime timeWithNumber:[NSNumber numberWithLong:duration]];
+        VLCTime *time = [VLCTime timeWithNumber:[NSNumber numberWithLongLong:duration]];
         [subtitle appendString:[time verboseStringValue]];
     }
 
@@ -115,7 +120,7 @@
                                                       stringFromByteCount:_oneDriveFile.size
                                                       countStyle:NSByteCountFormatterCountStyleFile]];
         if (duration > 0) {
-            VLCTime *time = [VLCTime timeWithNumber:[NSNumber numberWithLong:duration]];
+            VLCTime *time = [VLCTime timeWithNumber:[NSNumber numberWithLongLong:duration]];
             [subtitle appendFormat:@" — %@", [time verboseStringValue]];
         }
     }
@@ -175,16 +180,19 @@
                 [self.thumbnailView setImageWithURL:[NSURL URLWithString:_driveFile.thumbnailLink]];
             }
         }
-        NSString *iconName = self.driveFile.iconLink;
-        if (isDirectory) {
-            self.thumbnailView.image = [UIImage imageNamed:@"folder"];
-        } else if ([iconName isEqualToString:@"https://ssl.gstatic.com/docs/doclist/images/icon_10_audio_list.png"]) {
-            self.thumbnailView.image = [UIImage imageNamed:@"audio"];
-        } else if ([iconName isEqualToString:@"https://ssl.gstatic.com/docs/doclist/images/icon_11_video_list.png"]) {
-            self.thumbnailView.image = [UIImage imageNamed:@"movie"];
-        } else {
-            self.thumbnailView.image = [UIImage imageNamed:@"blank"];
-            APLog(@"missing icon for type '%@'", self.driveFile.iconLink);
+
+        if (!self.thumbnailView.image) {
+            NSString *iconName = self.driveFile.iconLink;
+            if (isDirectory) {
+                self.thumbnailView.image = [UIImage imageNamed:@"folder"];
+            } else if ([iconName isEqualToString:@"https://ssl.gstatic.com/docs/doclist/images/icon_10_audio_list.png"]) {
+                self.thumbnailView.image = [UIImage imageNamed:@"audio"];
+            } else if ([iconName isEqualToString:@"https://ssl.gstatic.com/docs/doclist/images/icon_11_video_list.png"]) {
+                self.thumbnailView.image = [UIImage imageNamed:@"movie"];
+            } else {
+                self.thumbnailView.image = [UIImage imageNamed:@"blank"];
+                APLog(@"missing icon for type '%@'", self.driveFile.iconLink);
+            }
         }
     }
 #endif
@@ -194,6 +202,7 @@
             self.folderTitleLabel.text = self.boxFile.name;
             self.titleLabel.hidden = self.subtitleLabel.hidden = YES;
             self.folderTitleLabel.hidden = NO;
+            self.downloadButton.hidden = YES;
         } else {
             NSString *title = self.boxFile.name;
             self.titleLabel.text = title;
@@ -231,10 +240,7 @@
 + (CGFloat)heightOfCell
 {
 #if TARGET_OS_IOS
-    if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad)
-        return 80.;
-
-    return 48.;
+    return 8. * 4. + [[UIFont preferredFontForTextStyle:UIFontTextStyleBody] lineHeight] + [[UIFont preferredFontForTextStyle:UIFontTextStyleCaption2] lineHeight];
 #else
     return 107.;
 #endif
@@ -249,4 +255,14 @@
     [super prepareForReuse];
     _thumbnailView.image = nil;
 }
+
+- (void)updateAppearanceForColorScheme
+{
+    ColorPalette *colors = PresentationTheme.current.colors;
+    self.backgroundColor = colors.cellBackgroundA;
+    self.titleLabel.textColor = colors.cellTextColor;
+    self.folderTitleLabel.textColor = colors.cellTextColor;
+    self.subtitleLabel.textColor = colors.cellDetailTextColor;
+}
+
 @end

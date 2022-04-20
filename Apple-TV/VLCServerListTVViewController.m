@@ -1,7 +1,7 @@
 /*****************************************************************************
  * VLC for iOS
  *****************************************************************************
- * Copyright (c) 2015 VideoLAN. All rights reserved.
+ * Copyright (c) 2015, 2020 - 2021 VideoLAN. All rights reserved.
  * $Id$
  *
  * Authors: Tobias Conradi <videolan # tobias-conradi.de>
@@ -15,15 +15,13 @@
 
 #import "VLCNetworkServerBrowserPlex.h"
 #import "VLCNetworkServerBrowserVLCMedia.h"
-#import "VLCNetworkServerBrowserFTP.h"
+#import "VLCNetworkServerBrowserVLCMedia+FTP.h"
+#import "VLCNetworkServerBrowserVLCMedia+SFTP.h"
 
 #import "VLCLocalNetworkServiceBrowserManualConnect.h"
 #import "VLCLocalNetworkServiceBrowserPlex.h"
-#import "VLCLocalNetworkServiceBrowserFTP.h"
 #import "VLCLocalNetworkServiceBrowserUPnP.h"
-#ifndef NDEBUG
-#import "VLCLocalNetworkServiceBrowserSAP.h"
-#endif
+#import "VLCLocalNetworkServiceBrowserNFS.h"
 #import "VLCLocalNetworkServiceBrowserDSM.h"
 #import "VLCLocalNetworkServiceBrowserBonjour.h"
 #import "VLCLocalNetworkServiceBrowserHTTP.h"
@@ -31,7 +29,6 @@
 #import "VLCNetworkServerLoginInformation+Keychain.h"
 
 #import "VLCRemoteBrowsingTVCell.h"
-#import "GRKArrayDiff+UICollectionView.h"
 
 #import "VLC-Swift.h"
 
@@ -52,11 +49,16 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+
+    if (@available(tvOS 13.0, *)) {
+        self.navigationController.navigationBarHidden = YES;
+    }
+    
     self.automaticallyAdjustsScrollViewInsets = NO;
     self.edgesForExtendedLayout = UIRectEdgeAll ^ UIRectEdgeTop;
 
     UICollectionViewFlowLayout *flowLayout = (UICollectionViewFlowLayout *)self.collectionViewLayout;
-    flowLayout.itemSize = CGSizeMake(250.0, 300.0);
+    flowLayout.itemSize = CGSizeMake(250.0, 340.0);
     flowLayout.minimumInteritemSpacing = 48.0;
     flowLayout.minimumLineSpacing = 100.0;
 
@@ -90,13 +92,12 @@
                          [VLCLocalNetworkServiceBrowserUPnP class],
                          [VLCLocalNetworkServiceBrowserDSM class],
                          [VLCLocalNetworkServiceBrowserPlex class],
-                         [VLCLocalNetworkServiceBrowserFTP class],
-#ifndef NDEBUG
-                         [VLCLocalNetworkServiceBrowserSAP class],
-#endif
+                         [VLCLocalNetworkServiceBrowserNFS class],
+                         [VLCLocalNetworkServiceBrowserBonjour class],
                          ];
     self.discoveryController = [[VLCLocalServerDiscoveryController alloc] initWithServiceBrowserClasses:classes];
     self.discoveryController.delegate = self;
+    [self discoveryFoundSomethingNew];
 }
 
 - (NSString *)title {
@@ -137,8 +138,18 @@
     browsingCell.titleLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleCaption2];
     browsingCell.subtitle = service.serviceName;
     browsingCell.subtitleLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleCaption1];
-    UIImage *serviceIcon = service.icon;
-    browsingCell.thumbnailImage = serviceIcon ? serviceIcon : [UIImage imageNamed:@"serverIcon"];
+
+    NSURL *thumbnailURL;
+    if ([service respondsToSelector:@selector(iconURL)]) {
+        thumbnailURL = service.iconURL;
+    }
+    if (thumbnailURL == nil) {
+        UIImage *serviceIcon = service.icon;
+        browsingCell.thumbnailImage = serviceIcon ? serviceIcon : [UIImage imageNamed:@"serverIcon"];
+        [browsingCell setThumbnailImage:serviceIcon];
+    } else {
+        [browsingCell setThumbnailURL:thumbnailURL];
+    }
 
     return browsingCell;
 }
@@ -168,6 +179,16 @@
         VLCNetworkServerLoginInformation *login = service.loginInformation;
         if (!login) return;
 
+        /* UPnP does not support authentication, so skip this step */
+        if ([login.protocolIdentifier isEqualToString:VLCNetworkServerProtocolIdentifierUPnP]) {
+            VLCNetworkServerBrowserVLCMedia *serverBrowser = [VLCNetworkServerBrowserVLCMedia UPnPNetworkServerBrowserWithLogin:login];
+                        VLCServerBrowsingTVViewController *browsingViewController = [[VLCSearchableServerBrowsingTVViewController alloc] initWithServerBrowser:serverBrowser];
+            [self presentViewController:[[UINavigationController alloc] initWithRootViewController:browsingViewController]
+                               animated:YES
+                             completion:nil];
+            return;
+        }
+
         NSError *error = nil;
         if ([login loadLoginInformationFromKeychainWithError:&error])
         {
@@ -191,7 +212,7 @@
         VLCMediaList *medialist = [[VLCMediaList alloc] init];
         [medialist addMedia:[VLCMedia mediaWithURL:url]];
 
-        [[VLCPlaybackController sharedInstance] playMediaList:medialist firstIndex:0 subtitlesFilePath:nil];
+        [[VLCPlaybackService sharedInstance] playMediaList:medialist firstIndex:0 subtitlesFilePath:nil];
 
         [self presentViewController:[VLCFullscreenMovieTVViewController fullscreenMovieTVViewController]
                            animated:YES
@@ -242,12 +263,18 @@
         textField.placeholder = NSLocalizedString(@"USER_LABEL", nil);
         textField.text = login.username;
         usernameField = textField;
+        if (@available(tvOS 11.0, *)) {
+            usernameField.textContentType = UITextContentTypeUsername;
+        }
     }];
     [alertController addTextFieldWithConfigurationHandler:^(UITextField * _Nonnull textField) {
         textField.secureTextEntry = YES;
         textField.placeholder = NSLocalizedString(@"PASSWORD_LABEL", nil);
         textField.text = login.password;
         passwordField = textField;
+        if (@available(tvOS 11.0, *)) {
+            passwordField.textContentType = UITextContentTypePassword;
+        }
     }];
     [alertController addTextFieldWithConfigurationHandler:^(UITextField * _Nonnull textField) {
         textField.placeholder = NSLocalizedString(@"SERVER_PORT", nil);
@@ -275,9 +302,9 @@
     }
 
     void(^loginBlock)(BOOL) = ^(BOOL save) {
-        login.username = usernameField.text;
-        login.password = passwordField.text;
-        login.port = [NSNumber numberWithInt:portField.text.intValue];
+        login.username = usernameField.text.length > 0 ? usernameField.text : nil;
+        login.password = passwordField.text.length > 0 ? passwordField.text : nil;
+        login.port = portField.text.intValue > 0 ? [NSNumber numberWithInt:portField.text.intValue] : nil;
         for (VLCNetworkServerLoginInformationField *fieldInfo in login.additionalFields) {
             UITextField *textField = additionalFieldsDict[fieldInfo.identifier];
             fieldInfo.textValue = textField.text;
@@ -333,12 +360,18 @@
     id<VLCNetworkServerBrowser> serverBrowser = nil;
     NSString *identifier = login.protocolIdentifier;
 
+    if (!login.address || login.address.length == 0) {
+        return;
+    }
+
     if ([identifier isEqualToString:VLCNetworkServerProtocolIdentifierFTP]) {
-        serverBrowser = [[VLCNetworkServerBrowserFTP alloc] initWithLogin:login];
+        serverBrowser = [VLCNetworkServerBrowserVLCMedia FTPNetworkServerBrowserWithLogin:login];
     } else if ([identifier isEqualToString:VLCNetworkServerProtocolIdentifierPlex]) {
         serverBrowser = [[VLCNetworkServerBrowserPlex alloc] initWithLogin:login];
     } else if ([identifier isEqualToString:VLCNetworkServerProtocolIdentifierSMB]) {
         serverBrowser = [VLCNetworkServerBrowserVLCMedia SMBNetworkServerBrowserWithLogin:login];
+    } else if ([identifier isEqualToString:VLCNetworkServerProtocolIdentifierSFTP]) {
+        serverBrowser = [VLCNetworkServerBrowserVLCMedia SFTPNetworkServerBrowserWithLogin:login];
     }
 
     if (serverBrowser) {
@@ -352,12 +385,7 @@
 #pragma mark - VLCLocalServerDiscoveryController
 - (void)discoveryFoundSomethingNew
 {
-    NSString * (^mapServiceName)(id<VLCLocalNetworkService>) = ^NSString *(id<VLCLocalNetworkService> service) {
-        return [NSString stringWithFormat:@"%@: %@", service.serviceName, service.title];
-    };
-
     NSMutableArray<id<VLCLocalNetworkService>> *newNetworkServices = [NSMutableArray array];
-    NSMutableSet<NSString *> *addedNetworkServices = [[NSMutableSet alloc] init];
     VLCLocalServerDiscoveryController *discoveryController = self.discoveryController;
     NSUInteger sectionCount = [discoveryController numberOfSections];
     for (NSUInteger section = 0; section < sectionCount; ++section) {
@@ -366,26 +394,13 @@
             NSIndexPath *indexPath = [NSIndexPath indexPathForItem:index inSection:section];
             id<VLCLocalNetworkService> service = [discoveryController networkServiceForIndexPath:indexPath];
             if (service != nil) {
-                NSString *mappedName = mapServiceName(service);
-                if(![addedNetworkServices containsObject:mappedName]) {
-                    [addedNetworkServices addObject:mappedName];
-                    [newNetworkServices addObject:service];
-                }
+                [newNetworkServices addObject:service];
             }
         }
     }
 
-    NSArray *oldNetworkServices = self.networkServices;
-    GRKArrayDiff *diff = [[GRKArrayDiff alloc] initWithPreviousArray:oldNetworkServices
-                                                        currentArray:newNetworkServices
-                                                       identityBlock:mapServiceName
-                                                       modifiedBlock:nil];
-
-    [diff performBatchUpdatesWithCollectionView:self.collectionView
-                                        section:0
-                               dataSourceUpdate:^{
-                                   self.networkServices = newNetworkServices;
-                               } completion:nil];
+    self.networkServices = newNetworkServices;
+    [self.collectionView reloadData];
 
     _nothingFoundLabel.hidden = self.discoveryController.foundAnythingAtAll;
 }

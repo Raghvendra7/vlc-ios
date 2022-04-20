@@ -1,10 +1,8 @@
-"STORE_DESCRIPTION" = "VLC för iOS är en portering av den fria mediaspelaren VLC media player till iPad, iPhone och iPod touch.\nDen kan direkt spela upp alla dina filmer, TV-program och musik i de flesta formaten utan att behöva konvertera.\nDen stödjer filsynkronisering med Dropbox, GDrive, OneDrive, Box, iCloud Drive, iTunes, direkt nedladdning och genom WiFi-delning såväl som strömning från SMB-, FTP- och UPnP/DLNA-mediaservrar samt webben.\nVLC tillhandahåller stöd för avancerade undertexter inklusive full SSA-kompatibilitet, flerspårigt ljud och kontroll för hastighetsuppspelning.\n\nVLC för iOS är helt fritt och har öppen källkod.";
+"STORE_DESCRIPTION" = "VLC är en fri och plattformsoberoende multimediaspelare med öppen källkod.\nDen kan spela upp alla dina filmer, TV-program och musik i de flesta formaten direkt utan att behöva konvertera.\nDen har stöd för filsynkronisering med Dropbox, GDrive, OneDrive, Box, iCloud Drive, iTunes, direkt nedladdning och genom WiFi-delning såväl som att strömma från SMB-, FTP-, SFTP-, NFS- och UPnP/DLNA-mediaservrar samt webben.\nVLC tillhandahåller stöd för avancerade undertexter inklusive full SSA-kompatibilitet, flerspårigt ljud, kontroll över uppspelningshastighet och rendering via Chromecast.\n\nVLC är helt fritt och har öppen källkod.";
 
-"STORE_DESCRIPTION_TV" = "VLC media player är en fri och plattformsoberoende multimediaspelare med öppen källkod.\nDen kan spela upp alla dina filmer, TV-program och musik i de flesta formaten utan att behöva konvertera.\nDen tillåter strömning från från molntjänster (Dropbox, OneDrive, Box), fjärruppspelning från din Mac eller PC via ett webbgränssnitt såväl som strömning från SMB-, FTP- och UPnP/DLNA-mediaservrar samt webben.\nVLC tillhandahåller stöd för avancerade undertexter inklusive full SSA-kompatibilitet, flerspårigt ljud och kontroll för hastighetsuppspelning.\n\nVLC för iOS är helt fritt och har öppen källkod.\n\nMetadata och omslag tillhandahålls av film- och musikdatabaserna TMDb och Hatchet, som drivs av dess gemenskaper.";
+"STORE_DESCRIPTION_TV" = "VLC är en fri och plattformsoberoende multimediaspelare med öppen källkod.\nDen kan spela upp alla dina filmer, TV-program och musik i de flesta formaten direkt utan att behöva konvertera.\nDen har stöd för fjärruppspelning från din Mac eller PC via ett webbgränssnitt såväl som att strömma från SMB-, FTP-, SFTP-, NFS- och UPnP/DLNA-mediaservrar samt webben.\nVLC tillhandahåller stöd för avancerade undertexter inklusive full SSA-kompatibilitet, flerspårigt ljud, kontroll över uppspelningshastighet.\n\nVLC är helt fritt och har öppen källkod.\n\nOmslag tillhandahålls av TMDb, som är en gemenskapsdriven filmdatabas.";
 
-"CHOOSE_AUDIO_TRACK" = "Välj ljudspår";
-"CHOOSE_SUBTITLE_TRACK" = "Välj undertextspår";
-"OPEN_TRACK_PANEL" = "Öppna spårval";
+"UNKNOWN_TRACK_TYPE" = "Okänd spårtyp";
 "CHOOSE_TITLE" = "Välj titel";
 "CHOOSE_CHAPTER" = "Välj kapitel";
 "CHAPTER_SELECTION_TITLE" = "Kapitel";
@@ -35,9 +33,9 @@
 "VFILTER_SATURATION" = "Färgmättnad";
 "VFILTER_GAMMA" = "Gamma";
 
+"PRESET_PREAMP_SETTING" = "Inställningar för förinställning/försteg";
 "PREAMP" = "Försteg";
-"DB_FORMAT" = "%i dB";
-"CHOOSE_EQUALIZER_PROFILES" = "Välj equalizerprofil";
+"SNAP_BANDS" = "Fäst band";
 
 "PLAYBACK_FAILED" = "Uppspelning misslyckades";
 "PLEASE_WAIT" = "Var god vänta";
@@ -68,14 +66,16 @@
 "BUTTON_CONTINUE" = "Återuppta";
 "BUTTON_SET" = "Ändra";
 "BUTTON_RESET" = "Återställ";
+"BUTTON_RESCAN" = "Sök igenom";
 "PRIVATE_PLAYBACK_TOGGLE" = "Privat uppspelning";
 "SCAN_SUBTITLE_TOGGLE" = "Sök efter undertexter (endast http)";
 
 "BUTTON_RENDERER" = "Castenheter";
 "BUTTON_RENDERER_HINT" = "Visa en meny med tillgängliga castenheter";
+"BUTTON_AIRPLAY" = "AirPlay eller Bluetooth";
+"BUTTON_AIRPLAY_HINT" = "Visa en meny över tillgängliga AirPlay- eller Bluetooth-enheter";
 
 "UPGRADING_LIBRARY" = "Uppgraderar mediabiblioteket";
-"UNKNOWN" = "Okänd";
 
 "OPEN_NETWORK" = "Öppna nätverksström";
 "NETWORK_TITLE" = "Nätverksström";
@@ -127,6 +127,9 @@
 "LOCAL_SERVER_CONNECTION_FAILED_TITLE" = "SERVERANSLUTNING MISSLYCKADES";
 "LOCAL_SERVER_CONNECTION_FAILED_MESSAGE" = "Var god kontrollera din serveradress och autentiseringsuppgifter";
 
+"FILES_APP_CELL_TITLE" = "Lokala filer";
+"FILES_APP_CELL_SUBTITLE" = "Öppna en fil utan att kopiera den till VLC.";
+
 "CLOUD_SERVICES" = "Molntjänster";
 "LOGIN" = "Logga in";
 "LOGGED_IN" = "Inloggad";
@@ -175,9 +178,15 @@
 "OFF" = "Av";
 
 "EMPTY_LIBRARY" = "Tomt mediabibliotek";
-"EMPTY_LIBRARY_LONG" = "För uppspelning kan du strömma media från en server på ditt lokala nätverk, från molnet eller synkronisera media till din enhet via iTunes, WiFi eller molntjänster.";
+"EMPTY_LIBRARY_LONG" = "För att spela upp media kan du strömma från en server på ditt lokala nätverk, från molnet eller synkronisera media till din enhet via iTunes, WiFi eller molntjänster.";
 
-"PLAYBACK_SCRUB_HELP" = "Dra ditt finger nedåt för att justera skrubbningsgraden.";
+"EMPTY_NO_PLAYLISTS" = "Spellistor";
+"EMPTY_NO_PLAYLISTS_DESCRIPTION" = "För att skapa spellistor aktiverar du redigeringsläget i video- eller ljudfliken och markerar dina favoritmediafiler.\nDu kan även synkronisera befintliga spellistor från dina andra enheter eller internet.";
+
+"EMPTY_PLAYLIST" = "Tom spellista";
+"EMPTY_PLAYLIST_DESCRIPTION" = "Lägg till media medan du redigerar de respektive kategorierna.";
+
+"PLAYBACK_SCRUB_HELP" = "Dra ditt finger uppåt för att justera skrubbningsgraden.";
 "PLAYBACK_SCRUB_HIGH" = "Skrubbning i högfart";
 "PLAYBACK_SCRUB_HALF" = "Skrubbning i halvfart";
 "PLAYBACK_SCRUB_QUARTER" = "Skrubbning i fjärdedelsfart";
@@ -185,8 +194,7 @@
 "PLAYBACK_POSITION" = "Uppspelningsposition";
 "VIDEO_FILTER" = "Videofilter";
 "VIDEO_FILTER_RESET_BUTTON" = "Återställ videofilter";
-"VIDEO_ASPECT_RATIO_BUTTON" = "Byt videons bildförhållande";
-"PLAY_PAUSE_BUTTON" = "Spela eller pausa aktuell uppspelning";
+"VIDEO_ASPECT_RATIO_BUTTON" = "Bildförhållande för video";
 "BWD_BUTTON" = "Hoppa bakåt";
 "FWD_BUTTON" = "Hoppa framåt";
 "PLAY_BUTTON" = "Spela upp";
@@ -194,19 +202,21 @@
 "PREV_BUTTON" = "Föregående";
 "PLAY_ALL_BUTTON" = "Spela upp alla";
 
+"RESET_VIDEO_FILTERS" = "Vill du återställa videofiltren?";
+"RESET_PLAYBACK_SPEED" = "Vill du återställa uppspelningshastigheten?";
+"RESET_EQUALIZER" = "Vill du återställa equalizerinställningarna?";
+"RESET_SLEEP_TIMER" = "Vill du återställa sovtimern?";
+
 "VERSION_FORMAT" = "Version: %@";
 "BASED_ON_FORMAT" = "Baserad på:<br />%@";
 
 "NEW" = "NYTT";
 
-"BUG_REPORT_TITLE" = "Rapportera en bugg";
-"BUG_REPORT_MESSAGE" = "Vill du skapa en buggrapport?";
-"BUG_REPORT_BUTTON" = "Öppna Safari";
 
 "VO_VIDEOPLAYER_TITLE" = "Videospelare";
 "VO_VIDEOPLAYER_DOUBLETAP" = "Dubbelknacka för att visa eller dölja uppspelningskontroller";
 
-"FIRST_STEPS_ITUNES" = "iTunes Filsynkronisering";
+"FIRST_STEPS_ITUNES" = "iTunes-filsynkning";
 "FIRST_STEPS_ITUNES_TITLE" = "Synkronisera med din dator";
 "FIRST_STEPS_ITUNES_DETAILS" = "Anslut din enhet till iTunes och välj din enhet. Välj \"Fildelning\" i sidomenyn till vänster i iTunes och leta efter VLC för att överföra filer";
 "FIRST_STEPS_WIFI_TITLE" = "Dela via WiFi";
@@ -231,25 +241,28 @@
 "WEBINTF_DROPFILES_LONG" = "Släpp filer i fönstret för att lägga till dem i din %@.<br>Eller klicka på knappen \"+\" för att använda filväljaren.";
 "WEBINTF_DOWNLOADFILES" = "Ladda ned filer";
 "WEBINTF_DOWNLOADFILES_LONG" = "Klicka bara på filen du vill ladda ned från din %@.";
+"WEBINTF_ADDRESS_COPIED" = "Adressen kopierades till urklipp";
 "WEBINTF_TITLE_ATV" = "Fjärruppspelning";
 "WEBINTF_DROPFILES_LONG_ATV" = "Släpp filerna i fönstret för att spela upp dem på din %@.<br>Eller klicka på plusknappen för att använda filväljaren.";
 "WEBINTF_URL_SENT" = "Webbadressen skickades.";
 "WEBINTF_URL_EMPTY" = "Webbadressen kan inte vara tom.";
 "WEBINTF_URL_INVALID" = "Inte en giltig webbadress";
+"WEBINTF_AUTH_REQUIRED" = "Ange lösenkoden du angav i VLC iOS:";
+"WEBINTF_AUTH_WRONG_PASSCODE" = "Fel lösenkod.<br>Återstående försök: ";
+"WEBINTF_AUTH_BANNED" = "Du angav fel lösenkod för många gånger.<br>Starta om VLC iOS och försök igen.";
 
 
 
 "DURATION" = "Speltid";
 "TITLE" = "Titel";
 
-// strings from VLCKit
+// MARK: - strings from VLCKit
 
-// accessibility labels for the playlist
+// MARK: - accessibility labels for the playlist
 
 
-"LONGPRESS_TO_STOP" = "Håll ned för att stoppa uppspelningen.";
 
-// ATV specific
+// MARK: - ATV specific
 "AUDIO_INFO_VC_TITLE" = "Ljudinformation";
 "CLOUD_LOGIN_LONG" = "För att komma åt molntjänster måste du logga in på iCloud i både denna Apple TV och en iOS-enhet med samma Apple-ID samt aktivera delning av nyckelring i systeminställningarna.\nLogga sedan in på valfri molnleverantör med VLC-appen på din iOS-enhet och välj sedan den på denna skärm.";
 "ENTER_URL" = "Ange webbadress att spela upp";
@@ -259,6 +272,7 @@
 "CACHED_MEDIA_LONG" = "Media som visas här lagras lokalt på din Apple TV. Observera att om din enhet får slut på lagringsutrymme kan operativsystemet ta bort innehåll när som helst utan förvarning medan VLC körs.";
 "DOWNLOAD_SUBS_FROM_OSO" = "Ladda ned undertexter från OpenSubtitles.org...";
 "FOUND_SUBS" = "Undertexter hittades";
+"NO_SUB_FOUND_OSO" = "Inga undertexter hittades för ditt mediaobjekt \"%@\".";
 "USE_SPDIF" = "Använd passthrough (S/PDIF)";
 
 "PLAYBACK" = "Uppspelning";
@@ -266,16 +280,23 @@
 "REPEAT_DISABLED" = "Inaktiverad";
 "REPEAT_SINGLE" = "En gång";
 "REPEAT_FOLDER" = "Mapp";
+"SHUFFLE" = "Blanda";
 
-// Local Network Service Names
+"RESET_NETWORK_STREAM_LIST_TITLE" = "Återställ lista";
+"RESET_NETWORK_STREAM_LIST_TEXT" = "Återställ listan över senast uppspelade nätverksströmmar permanent.";
+
+// MARK: - Local Network Service Names
 "UPNP_LONG" = "Universal Plug'n'Play (UPnP)";
 "UPNP_SHORT" = "UPnP";
 
 "PLEX_LONG" = "Plex Media Server (via Bonjour)";
 "PLEX_SHORT" = "Plex";
 
-"FTP_LONG" = "File Transfer Protocol (FTP)";
 "FTP_SHORT" = "FTP";
+"SFTP_SHORT" = "SFTP";
+
+"NFS_LONG" = "Network File System (NFS)";
+"NFS_SHORT" = "NFS";
 
 "BONJOUR_FILE_SERVERS" = "BONJOUR-filserver";
 "DSM_WORKGROUP" = "Arbetsgrupp";
@@ -285,10 +306,12 @@
 // Insert %@ where play-pause-glyph should be placed
 "DELETE_ITEM_HINT" = "Tryck på %@ för att radera"; /* Insert %@ where play-pause-glyph should be placed */
 
-"DELETE_MESSAGE" = "Bekräfta att markerade filer ska raderas";
-"DELETE_TITLE" = "Radera markerade filer";
+"DELETE_MESSAGE" = "Bekräfta om markeringen ska raderas";
+"DELETE_MESSAGE_PLAYLIST" = "Är du säker på att du vill radera den markerade spellistan?\nDe associerade mediafilerna kommer inte att raderas.";
+"DELETE_MESSAGE_PLAYLIST_CONTENT" = "Är du säker på att du vill ta bort markerade mediafiler från spellistan?\nDe kommer inte att raderas från hårddisken.";
+"DELETE_TITLE" = "Radera markering";
 
-//Drag and Drop
+// MARK: - Drag and Drop
 "THIS_FILE" = "Denna fil";
 "NOT_SUPPORTED_FILETYPE" = "%@ är inte ett filformat som VLC stöder";
 "FILE_EXISTS" = "%@ finns redan";
@@ -303,22 +326,26 @@
 "SEARCH" = "Sök";
 "VIDEO" = "Video";
 
-// MediaViewController Swipable Header
+// MARK: - MediaViewController Swipable Header
 "ALBUMS" = "Album";
 "ARTISTS" = "Artister";
 "EPISODES" = "Episoder";
 "GENRES" = "Genrer";
-"MOVIES" = "Filmer";
+"ALL_VIDEOS" = "Alla videor";
 "SONGS" = "Låtar";
 "PLAYLISTS" = "Spellistor";
+"VIDEO_GROUPS" = "Videogrupper";
 
 "MODIFIED_DATE" = "Datum ändrat";
 "NAME" = "Namn";
 
-//EDIT
+// MARK: - EDIT
 
 "BUTTON_EDIT" = "Redigera";
 "BUTTON_EDIT_HINT" = "Redigeringsläge";
+
+"BUTTON_SELECT_ALL" = "Markera alla";
+"BUTTON_SELECT_ALL_HINT" = "Markera alla mediaobjekt som finns i denna vy";
 
 "ADD_TO_PLAYLIST" = "Lägg till i spellista";
 "ADD_TO_PLAYLIST_HINT" = "Öppna menyn för att lägga till i spellista";
@@ -338,7 +365,7 @@
 "RENAME_HINT" = "Byt namn på markerade filer";
 "DELETE_HINT" = "Radera markerade filer";
 
-// Sort
+// MARK: - Sort
 
 "BUTTON_SORT" = "Sortera";
 "BUTTON_SORT_HINT" = "Visningsordning för alternativmenyn";
@@ -346,8 +373,9 @@
 "DESCENDING_LABEL" = "Fallande ordning";
 "DESCENDING_SWITCH_LABEL" = "Stigande eller fallande ordning";
 "DESCENDING_SWITCH_HINT" = "Sortera alternativmenyn i stigande eller fallande ordning";
+"GRID_LAYOUT" = "Rutnätslayout";
 
-// VLCMediaLibraryKit - Sorting Criteria
+// MARK: - VLCMediaLibraryKit - Sorting Criteria
 
 "ALPHA" = "Alfanumeriskt";
 "DURATION" = "Speltid";
@@ -360,21 +388,156 @@
 "ALBUM" = "Album";
 "FILENAME" = "Filnamn";
 "TRACK_NUMBER" = "Spårnummer";
+"NB_AUDIO" = "Antal ljud";
+"NB_MEDIA" = "Antal media";
+"NB_VIDEO" = "Antal videor";
 
-// VLCNetworkLoginTVViewController
+// MARK: - VLCNetworkLoginTVViewController
 
 "NO_SAVING_DATA" = "Ingenting hittades";
 
-// MediaCollectionViewCell
+// MARK: - MediaCollectionViewCell
 
 "UNKNOWN_ARTIST" = "Okänd artist";
 "VARIOUS_ARTIST" = "Blandade artister";
 "UNKNOWN_ALBUM" = "Okänt album";
 
-/* New strings */
+// MARK: - VideoPlayerControls
+
+"SUBTITLE_AND_TRACK_BUTTON" = "Undertext- och ljudspår";
+"SUBTITLE_AND_TRACK_HINT" = "Välj undertext- eller ljudspår";
+
+"DVD_BUTTON" = "DVD";
+"DVD_HINT" = "DVD-gränssnitt";
+
+"ROTATION_LOCK_BUTTON" = "Roteringslås";
+"ROTATION_LOCK_HINT" = "Lås videon till nuvarande orientering";
+
+"REPEAT_HINT" = "Upprepa samma media";
+
+"BACKWARD_BUTTON" = "Bakåt";
+"BACKWARD_HINT" = "Spola tillbaka";
+
+"PREVIOUS_BUTTON" = "Föregående";
+"PREVIOUS_HINT" = "Föregående mediafil";
+
+"PLAY_PAUSE_BUTTON" = "Spela upp eller pausa";
+"PLAY_PAUSE_HINT" = "Spela upp eller pausa nuvarande uppspelning";
+
+"STOP_BUTTON" = "Stoppa";
+
+"NEXT_HINT" = "Nästa mediafil";
+
+"FORWARD_BUTTON" = "Framåt";
+"FORWARD_HINT" = "Spola framåt";
+
 "INTERFACE_LOCK_BUTTON" = "Lås gränssnitt";
-"INTERFACE_LOCK_HINT" = "Inaktivera gränssnittskontroller";
+
+"SHUFFLE_HINT" = "Blanda medialista";
+
+"VIDEO_ASPECT_RATIO_BUTTON" = "Bildförhållande för video";
+"VIDEO_ASPECT_RATIO_HINT" = "Ändra bildförhållandet för aktuell video";
+
 "MORE_OPTIONS_BUTTON" = "Mer";
 "MORE_OPTIONS_HINT" = "Visa fler kontrollalternativ";
-"REPEAT_MODE_HINT" = "Ändra upprepningsläget för aktuellt objekt";
-"VIDEO_ASPECT_RATIO_HINT" = "Ändra bildförhållandet för aktuell video";
+
+"PLAYER_WARNING_SUBTITLE_CAST_TITLE" = "Stöd för undertexter saknas";
+"PLAYER_WARNING_SUBTITLE_CAST_DESCRIPTION" = "Det finns ännu inget stöd för undertexter vid casting.";
+
+// MARK: - MediaMoreOptionsActionSheet
+"EQUALIZER_CELL_TITLE" = "Equalizer";
+"MORE_OPTIONS_HEADER_TITLE" = "Videoalternativ";
+
+// MARK: - Settings - Force rescan alert
+"FORCE_RESCAN_TITLE" = "Tvinga genomsökning av mediabiblioteket";
+"FORCE_RESCAN_MESSAGE" = "Vill du tvinga VLC att söka igenom ditt mediabibliotek?\nDet kan ta en stund.";
+
+// MARK: - Local Network
+
+"SMBV1_WARN_TITLE" = "Varning om SMBv1-anslutning";
+"SMBV1_WARN_DESCRIPTION" = "Vi upptäckte ett gammalt protokoll (SMBv1).\nÄr du säker på att du vill fortsätta med SMBv1?\nVi råder dig att uppgradera eller ändra dina serverinställningar.";
+"SMBV1_CONTINUE" = "Fortsätt med SMBv1";
+"SMBV1_NEXT_PROTOCOL" = "Prova SMBv2/v3";
+
+// MARK: - Preview labels
+
+"ENCODING" = "Kodning";
+
+// MARK: - Media groups
+
+"ADD_TO_MEDIA_GROUP" = "Lägg till i mediagrupp";
+"ADD_TO_MEDIA_GROUP_HINT" = "Öppna menyn för att lägga till i mediagrupper";
+
+"MEDIA_GROUPS" = "Mediagrupper";
+"MEDIA_GROUPS_DESCRIPTION" = "Välj en titel för din nya mediagrupp";
+"MEDIA_GROUPS_PLACEHOLDER" = "Titel på mediagrupp";
+
+"REMOVE_FROM_MEDIA_GROUP" = "Ta bort från mediagrupp";
+"REMOVE_FROM_MEDIA_GROUP_HINT" = "Ta bort markerade filer från mediagruppen";
+
+"MEDIA_GROUP_CREATION" = "Ny mediagrupp";
+"MEDIA_GROUP_CREATION_HINT" = "Visa dialogruta för att skapa en spellista";
+"MEDIA_GROUP_MOVE_TO_ROOT" = "Flytta innehåll längst upp";
+"MEDIA_GROUP_MOVE_TO_ROOT_HINT" = "Flyttar markeringens innehåll längst upp";
+
+"BUTTON_REGROUP" = "Omgruppera";
+"BUTTON_REGROUP_TITLE" = "Omgruppera markering";
+"BUTTON_REGROUP_HINT" = "Försök omgruppera enskild media automatiskt.";
+"BUTTON_REGROUP_DESCRIPTION" = "Är du säker på att du vill prova omgruppera enskild media automatiskt?\nDetta kan ta en stund.";
+
+// MARK: - Files.app persistence file
+"MEDIALIBRARY_FILES_PLACEHOLDER" = "Placera mediafiler här för att lägga till dem";
+"MEDIALIBRARY_ADDING_PLACEHOLDER" = "Lägger till...";
+
+// MARK: - tip jar
+"GIVE_TIP" = "Ge dricks";
+"MAKE_DONATION_TITLE" = "Donera";
+"DONATION_DESCRIPTION" = "Din sponsring låter oss förbättra VLC-appen för iOS och stödja VideoLAN-associationen.";
+"CANNOT_MAKE_PAYMENTS" = "Du har inte tillåtelse att genomföra köp på denna enhet.";
+"PURCHASE_FAILED" = "Köp misslyckades.";
+"SEND_DONATION" = "Skicka din donation";
+"PURCHASE_SUCESS_TITLE" = "Donation skickades";
+"PURCHASE_SUCESS_DESCRIPTION" = "Tack för din donation!";
+
+// MARK: - QueueViewController
+
+"PLAY_HINT" = "Spela upp";
+"PLAY_LABEL" = "Spela upp";
+"PLAY_NEXT_IN_QUEUE_HINT" = "Spela upp nästa i kön";
+"PLAY_NEXT_IN_QUEUE_LABEL" = "Spela upp nästa i kön";
+"APPEND_TO_QUEUE_HINT" = "Lägg till i slutet på kön";
+"APPEND_TO_QUEUE_LABEL" = "Lägg till i kön";
+
+"DISPLAY_AS" = "Visa som";
+
+/* New strings */
+"BRIGHTNESS_HINT" = "Vertikal kontroll av ljusstyrka";
+"BRIGHTNESS_SLIDER" = "Svep vertikalt för att ändra ljusstyrkan";
+
+/* New strings */
+"VOLUME_HINT" = "Vertikal kontroll av volym";
+"VOLUME_SLIDER" = "Svep vertikalt för att ändra volymen";
+
+// MARK: - AudioMiniPlayer playback controls menu
+"MENU_PLAYBACK_CONTROLS" = "Uppspelningskontroller";
+"MENU_REPEAT_DISABLED" = "Upprepa inte";
+"MENU_REPEAT_SINGLE" = "Upprepa en gång";
+"MENU_REPEAT_ALL" = "Upprepa alla";
+
+// MARK: - ActionSheet
+
+"ACTIONSHEET_BACKGROUND_LABEL" = "Dialogbakgrund";
+"ACTIONSHEET_BACKGROUND_HINT" = "Tryck för att ta bort dialogen.";
+
+// MARK: - Playback keyboard shortcuts
+
+"KEY_JUMP_BACKWARDS" = "Hoppa bakåt";
+"KEY_JUMP_FORWARDS" = "Hoppa framåt";
+"KEY_INCREASE_PLAYBACK_SPEED" = "Öka uppspelningshastighet";
+"KEY_DECREASE_PLAYBACK_SPEED" = "Minska uppspelningshastighet";
+"KEY_RESET_PLAYBACK_SPEED" = "Återställ uppspelningshastighet";
+
+// MARK: - TitleSelection
+
+"TITLESELECTION_BACKGROUND_LABEL" = "Bakgrund för markering av titlar";
+"TITLESELECTION_BACKGROUND_HINT" = "Tryck för att ta bort vyn.";

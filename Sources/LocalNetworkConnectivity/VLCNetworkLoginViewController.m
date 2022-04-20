@@ -2,7 +2,7 @@
  * VLCNetworkLoginViewController.m
  * VLC for iOS
  *****************************************************************************
- * Copyright (c) 2013-2015 VideoLAN. All rights reserved.
+ * Copyright (c) 2013-2015, 2021 VideoLAN. All rights reserved.
  * $Id$
  *
  * Authors: Felix Paul Kühne <fkuehne # videolan.org>
@@ -22,12 +22,12 @@
 #import "VLCNetworkServerLoginInformation.h"
 #import "VLC-Swift.h"
 
-
 // for protocol identifier
 #import "VLCLocalNetworkServiceBrowserPlex.h"
-#import "VLCLocalNetworkServiceBrowserFTP.h"
+#import "VLCNetworkServerBrowserVLCMedia+FTP.h"
+#import "VLCNetworkServerBrowserVLCMedia+SFTP.h"
 #import "VLCLocalNetworkServiceBrowserDSM.h"
-
+#import "VLCLocalNetworkServiceBrowserNFS.h"
 
 @interface VLCNetworkLoginViewController () <UITextFieldDelegate, VLCNetworkLoginDataSourceProtocolDelegate, VLCNetworkLoginDataSourceLoginDelegate, VLCNetworkLoginDataSourceSavedLoginsDelegate>
 
@@ -50,8 +50,8 @@
 
     self.title = NSLocalizedString(@"CONNECT_TO_SERVER", nil);
 
-    self.tableView.backgroundColor = PresentationTheme.current.colors.background;
-    self.tableView.separatorColor = PresentationTheme.current.colors.separatorColor;
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(themeDidChange) name:kVLCThemeDidChangeNotification object:nil];
+    [self themeDidChange];
 
     self.protocolDataSource = [[VLCNetworkLoginDataSourceProtocol alloc] init];
     self.protocolDataSource.delegate = self;
@@ -67,7 +67,16 @@
     [dataSource configureWithTableView:self.tableView];
     self.dataSource = dataSource;
 
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:NSLocalizedString(@"BUTTON_CONNECT", nil) style:UIBarButtonItemStyleDone target:self action:@selector(connectLoginDataSource)];
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
+                                              initWithTitle:NSLocalizedString(@"BUTTON_CONNECT", nil)
+                                              style:UIBarButtonItemStyleDone target:self
+                                              action:@selector(connectLoginDataSource)];
+    self.navigationItem.rightBarButtonItem.enabled = NO;
+    if (@available(iOS 13.0, *)) {
+        UINavigationBarAppearance *navigationBarAppearance = [VLCAppearanceManager navigationbarAppearance];
+        self.navigationController.navigationBar.standardAppearance = navigationBarAppearance;
+        self.navigationController.navigationBar.scrollEdgeAppearance = navigationBarAppearance;
+    }
 }
 
 - (UIStatusBarStyle)preferredStatusBarStyle
@@ -92,6 +101,10 @@
         protocol = VLCServerProtocolSMB;
     } else if ([protocolIdentifier isEqualToString:VLCNetworkServerProtocolIdentifierPlex]) {
         protocol = VLCServerProtocolPLEX;
+    } else if ([protocolIdentifier isEqualToString:VLCNetworkServerProtocolIdentifierNFS]) {
+        protocol = VLCServerProtocolNFS;
+    } else if ([protocolIdentifier isEqualToString:VLCNetworkServerProtocolIdentifierSFTP]) {
+        protocol = VLCServerProtocolSFTP;
     }
     return protocol;
 }
@@ -113,6 +126,17 @@
         case VLCServerProtocolSMB:
         {
             protocolIdentifier = VLCNetworkServerProtocolIdentifierSMB;
+            break;
+        }
+        case VLCServerProtocolNFS:
+        {
+            protocolIdentifier = VLCNetworkServerProtocolIdentifierNFS;
+            break;
+        }
+        case VLCServerProtocolSFTP:
+        {
+            protocolIdentifier = VLCNetworkServerProtocolIdentifierSFTP;
+            break;
         }
         default:
             break;
@@ -122,9 +146,27 @@
 
 - (void)setLoginInformation:(VLCNetworkServerLoginInformation *)loginInformation
 {
+    if (loginInformation.protocolIdentifier == nil) {
+        loginInformation.protocolIdentifier = VLCNetworkServerProtocolIdentifierSMB;
+        VLCNetworkServerLoginInformationField *workgroupField = [[VLCNetworkServerLoginInformationField alloc]
+                                                                 initWithType:VLCNetworkServerLoginInformationFieldTypeText
+                                                                 identifier:@"VLCLocalNetworkServiceDSMWorkgroup"
+                                                                 label:NSLocalizedString(@"DSM_WORKGROUP", nil)
+                                                                 textValue:@"WORKGROUP"];
+
+
+        loginInformation.additionalFields = @[workgroupField];
+    }
     _loginInformation = loginInformation;
     self.protocolDataSource.protocol = [self protocolForProtocolIdentifier:loginInformation.protocolIdentifier];
     self.loginDataSource.loginInformation = loginInformation;
+}
+
+- (void)themeDidChange
+{
+    self.view.backgroundColor = PresentationTheme.current.colors.background;
+    self.tableView.backgroundColor = PresentationTheme.current.colors.background;
+    self.tableView.separatorColor = PresentationTheme.current.colors.background;
 }
 
 #pragma mark - VLCNetworkLoginDataSourceProtocolDelegate
@@ -176,19 +218,29 @@
     VLCNetworkServerLoginInformation *loginInformation = dataSource.loginInformation;
     self.loginInformation = loginInformation;
 
-    [self.delegate loginWithLoginViewController:self loginInfo:dataSource.loginInformation];
+    if (!self.loginInformation.address || self.loginInformation.address.length == 0)
+        return;
 
     [self.tableView deselectRowAtIndexPath:self.tableView.indexPathForSelectedRow animated:YES];
+
+    if (UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad) {
+        [self dismissViewControllerAnimated:YES completion:^{
+            [self.delegate loginWithLoginViewController:self loginInfo:dataSource.loginInformation];
+        }];
+    } else {
+        [self dismissViewControllerAnimated:NO completion:nil];
+        [self.delegate loginWithLoginViewController:self loginInfo:dataSource.loginInformation];
+    }
 }
 
 - (void)connectLoginDataSource
 {
-    if (!self.protocolSelected)
-        return;
+    [self connectLoginDataSource:self.loginDataSource];
+}
 
-    [self.delegate loginWithLoginViewController:self loginInfo:self.loginInformation];
-
-    [self.tableView deselectRowAtIndexPath:self.tableView.indexPathForSelectedRow animated:YES];
+- (void)canConnect:(BOOL)boolValue
+{
+    self.navigationItem.rightBarButtonItem.enabled = boolValue;
 }
 
 - (BOOL)protocolSelected

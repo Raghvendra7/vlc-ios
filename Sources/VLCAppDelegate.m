@@ -2,7 +2,7 @@
  * VLCAppDelegate.m
  * VLC for iOS
  *****************************************************************************
- * Copyright (c) 2013-2019 VideoLAN. All rights reserved.
+ * Copyright (c) 2013-2022 VideoLAN. All rights reserved.
  * $Id$
  *
  * Authors: Felix Paul Kühne <fkuehne # videolan.org>
@@ -18,23 +18,7 @@
  *****************************************************************************/
 
 #import "VLCAppDelegate.h"
-#import "VLCMediaFileDiscoverer.h"
-#import "NSString+SupportedMedia.h"
-#import "UIDevice+VLC.h"
-#import "VLCHTTPUploaderController.h"
-#import "VLCPlaybackController.h"
-#import "VLCPlaybackController+MediaLibrary.h"
-#import <MediaPlayer/MediaPlayer.h>
-#import <HockeySDK/HockeySDK.h>
-#import "VLCActivityManager.h"
-#import "VLCDropboxConstants.h"
-#import "VLCPlaybackNavigationController.h"
-#import "PAPasscodeViewController.h"
 #import "VLC-Swift.h"
-#import <OneDriveSDK.h>
-#import "VLCOneDriveConstants.h"
-
-#define BETA_DISTRIBUTION 1
 
 @interface VLCAppDelegate ()
 {
@@ -42,6 +26,8 @@
     VLCKeychainCoordinator *_keychainCoordinator;
     AppCoordinator *appCoordinator;
     UITabBarController *rootViewController;
+    id<VLCURLHandler> _urlHandlerToExecute;
+    NSURL *_urlToHandle;
 }
 
 @end
@@ -51,11 +37,16 @@
 + (void)initialize
 {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSUInteger appThemeIndex = kVLCSettingAppThemeBright;
+    if (@available(iOS 13.0, *)) {
+        appThemeIndex = kVLCSettingAppThemeSystem;
+    }
 
-    NSDictionary *appDefaults = @{kVLCSettingPasscodeAllowFaceID : @(1),
+    NSDictionary *appDefaults = @{kVLCSettingAppTheme : @(appThemeIndex),
+                                  kVLCSettingPasscodeAllowFaceID : @(1),
                                   kVLCSettingPasscodeAllowTouchID : @(1),
                                   kVLCSettingContinueAudioInBackgroundKey : @(YES),
-                                  kVLCSettingStretchAudio : @(NO),
+                                  kVLCSettingStretchAudio : @(YES),
                                   kVLCSettingTextEncoding : kVLCSettingTextEncodingDefaultValue,
                                   kVLCSettingSkipLoopFilter : kVLCSettingSkipLoopFilterNonRef,
                                   kVLCSettingSubtitlesFont : kVLCSettingSubtitlesFontDefaultValue,
@@ -74,18 +65,37 @@
                                   kVLCSettingVideoFullscreenPlayback : @(YES),
                                   kVLCSettingContinuePlayback : @(1),
                                   kVLCSettingContinueAudioPlayback : @(1),
-                                  kVLCSettingFTPTextEncoding : kVLCSettingFTPTextEncodingDefaultValue,
                                   kVLCSettingWiFiSharingIPv6 : kVLCSettingWiFiSharingIPv6DefaultValue,
+                                  kVLCSettingNetworkRTSPTCP : @(NO),
+                                  kVLCSettingNetworkSatIPChannelListUrl : @"",
                                   kVLCSettingEqualizerProfile : kVLCSettingEqualizerProfileDefaultValue,
                                   kVLCSettingEqualizerProfileDisabled : @(YES),
                                   kVLCSettingPlaybackForwardSkipLength : kVLCSettingPlaybackForwardSkipLengthDefaultValue,
                                   kVLCSettingPlaybackBackwardSkipLength : kVLCSettingPlaybackBackwardSkipLengthDefaultValue,
                                   kVLCSettingOpenAppForPlayback : kVLCSettingOpenAppForPlaybackDefaultValue,
-                                  kVLCAutomaticallyPlayNextItem : @(YES)};
+                                  kVLCAutomaticallyPlayNextItem : @(YES),
+                                  kVLCSettingEnableMediaCellTextScrolling : @(NO),
+                                  kVLCSettingShowThumbnails : kVLCSettingShowThumbnailsDefaultValue,
+                                  kVLCSettingShowArtworks : kVLCSettingShowArtworksDefaultValue,
+                                  kVLCSettingBackupMediaLibrary : kVLCSettingBackupMediaLibraryDefaultValue,
+                                  kVLCSettingCastingAudioPassthrough : @(NO),
+                                  kVLCSettingCastingConversionQuality : @(2),
+                                  kVLCForceSMBV1 : @(YES),
+                                  @"kVLCAudioLibraryGridLayoutALBUMS" : @(YES),
+                                  @"kVLCAudioLibraryGridLayoutARTISTS" : @(YES),
+                                  @"kVLCAudioLibraryGridLayoutGENRES" : @(YES),
+                                  @"kVLCVideoLibraryGridLayoutALL_VIDEOS" : @(YES),
+                                  @"kVLCVideoLibraryGridLayoutVIDEO_GROUPS" : @(YES),
+                                  @"kVLCVideoLibraryGridLayoutVLCMLMediaGroupCollections" : @(YES),
+                                  kVLCPlayerShouldRememberState: @(YES),
+                                  kVLCPlayerIsShuffleEnabled: kVLCPlayerIsShuffleEnabledDefaultValue,
+                                  kVLCPlayerIsRepeatEnabled: kVLCPlayerIsRepeatEnabledDefaultValue,
+                                  kVLCSettingPlaybackSpeedDefaultValue: @(1.0)
+    };
     [defaults registerDefaults:appDefaults];
 }
 
-- (void)setup
+- (void)setupApplicationCoordinator
 {
     void (^setupAppCoordinator)(void) = ^{
         self->appCoordinator = [[AppCoordinator alloc] initWithTabBarController:self->rootViewController];
@@ -94,29 +104,8 @@
     [self validatePasscodeIfNeededWithCompletion:setupAppCoordinator];
 }
 
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
+- (void)configureShortCutItemsWithApplication:(UIApplication *)application
 {
-    BITHockeyManager *hockeyManager = [BITHockeyManager sharedHockeyManager];
-    [hockeyManager configureWithBetaIdentifier:@"0114ca8e265244ce588d2ebd035c3577"
-                                liveIdentifier:@"c95f4227dff96c61f8b3a46a25edc584"
-                                      delegate:nil];
-    [hockeyManager startManager];
-
-    // Configure Dropbox
-    [DBClientsManager setupWithAppKey:kVLCDropboxAppKey];
-
-    // Configure OneDrive
-    [ODClient setMicrosoftAccountAppId:kVLCOneDriveClientID scopes:@[@"onedrive.readwrite", @"offline_access"]];
-
-    [VLCApperanceManager setupAppearanceWithTheme:PresentationTheme.current];
-    self.orientationLock = UIInterfaceOrientationMaskPortrait | UIInterfaceOrientationMaskLandscape;
-
-    self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
-    rootViewController = [UITabBarController new];
-    self.window.rootViewController = rootViewController;
-    [self.window makeKeyAndVisible];
-    [self setup];
-
     /* add our static shortcut items the dynamic way to ease l10n and dynamic elements to be introduced later */
     if (application.shortcutItems == nil || application.shortcutItems.count < 4) {
         UIApplicationShortcutItem *localVideoItem = [[UIApplicationShortcutItem alloc] initWithType:kVLCApplicationShortcutLocalVideo
@@ -141,6 +130,23 @@
                                                                                         userInfo:nil];
         application.shortcutItems = @[localVideoItem, localAudioItem, localplaylistItem, networkItem];
     }
+}
+
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
+{
+    self.orientationLock = UIInterfaceOrientationMaskPortrait | UIInterfaceOrientationMaskLandscape;
+
+    self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+    rootViewController = [UITabBarController new];
+    self.window.rootViewController = rootViewController;
+    [self.window makeKeyAndVisible];
+    [VLCAppearanceManager setupAppearanceWithTheme:PresentationTheme.current];
+    if (@available(iOS 13.0, *)) {
+        [VLCAppearanceManager setupUserInterfaceStyleWithTheme:PresentationTheme.current];
+    }
+    [self setupApplicationCoordinator];
+
+    [self configureShortCutItemsWithApplication:application];
 
     return YES;
 }
@@ -160,7 +166,7 @@ continueUserActivity:(NSUserActivity *)userActivity
     if (!media) return NO;
 
     [self validatePasscodeIfNeededWithCompletion:^{
-        [[VLCPlaybackController sharedInstance] playMedia:media];
+        [[VLCPlaybackService sharedInstance] playMedia:media];
     }];
     return YES;
 }
@@ -178,7 +184,13 @@ didFailToContinueUserActivityWithType:(NSString *)userActivityType
 {
     for (id<VLCURLHandler> handler in URLHandlers.handlers) {
         if ([handler canHandleOpenWithUrl:url options:options]) {
-            if ([handler performOpenWithUrl:url options:options]) {
+            /* if no passcode is set, immediately execute the handler
+             * otherwise, store it for later use by the passcode controller's completion function */
+            if (![VLCKeychainCoordinator passcodeLockEnabled]) {
+                return [handler performOpenWithUrl:url options:options];
+            } else {
+                _urlHandlerToExecute = handler;
+                _urlToHandle = url;
                 return YES;
             }
         }
@@ -186,35 +198,37 @@ didFailToContinueUserActivityWithType:(NSString *)userActivityType
     return NO;
 }
 
-- (void)applicationWillEnterForeground:(UIApplication *)application
-{
-    [[MLMediaLibrary sharedMediaLibrary] applicationWillStart];
-}
-
 - (void)applicationWillResignActive:(UIApplication *)application
 {
     //Touch ID is shown 
     if ([_window.rootViewController.presentedViewController isKindOfClass:[UINavigationController class]]){
         UINavigationController *navCon = (UINavigationController *)_window.rootViewController.presentedViewController;
-        if ([navCon.topViewController isKindOfClass:[PAPasscodeViewController class]]){
+        if ([navCon.topViewController isKindOfClass:[PasscodeLockController class]]){
             return;
         }
     }
     [self validatePasscodeIfNeededWithCompletion:^{
         //TODO: handle updating the videoview and
-        if ([VLCPlaybackController sharedInstance].isPlaying){
+        if ([VLCPlaybackService sharedInstance].isPlaying){
             //TODO: push playback
         }
+
+        /* execute a potential URL handler that was set when the app was moved into foreground */
+        if (self->_urlHandlerToExecute) {
+            if (![self->_urlHandlerToExecute performOpenWithUrl:self->_urlToHandle options:@{}]) {
+                APLog(@"Failed to execute %@", self->_urlToHandle);
+            }
+            self->_urlHandlerToExecute = nil;
+            self->_urlToHandle = nil;
+        }
     }];
-    [[MLMediaLibrary sharedMediaLibrary] applicationWillExit];
 }
 
 - (void)applicationDidBecomeActive:(UIApplication *)application
 {
     if (!_isComingFromHandoff) {
-        [[MLMediaLibrary sharedMediaLibrary] updateMediaDatabase];
       //  [[VLCMediaFileDiscoverer sharedInstance] updateMediaList];
-        [[VLCPlaybackController sharedInstance] recoverDisplayedMetadata];
+        [[VLCPlaybackService sharedInstance] recoverDisplayedMetadata];
     } else if(_isComingFromHandoff) {
         _isComingFromHandoff = NO;
     }

@@ -13,7 +13,7 @@
 
 #import "VLCDropboxController.h"
 #import "NSString+SupportedMedia.h"
-#import "VLCPlaybackController.h"
+#import "VLCPlaybackService.h"
 #import "VLCActivityManager.h"
 #import "VLCMediaFileDiscoverer.h"
 #import "VLCDropboxConstants.h"
@@ -76,7 +76,8 @@
         return NO;
     }
     for (NSString *tmp in credentials) {
-        [DBSDKKeychain storeValueWithKey:kVLCStoreDropboxCredentials value:tmp];
+        DBAccessToken *accessToken = [DBAccessToken createWithLongLivedAccessToken:tmp uid:kVLCStoreDropboxCredentials];
+        [DBSDKKeychain storeAccessToken:accessToken];
     }
     return YES;
 }
@@ -181,22 +182,52 @@
 
 # pragma mark - Dropbox API Request
 
+- (void)listFolderContinueWithClient:(DBUserClient *)client cursor:(NSString *)cursor list:(NSMutableArray *)list {
+    [[[self client].filesRoutes listFolderContinue:cursor]
+     setResponseBlock:^(DBFILESListFolderResult *response, DBFILESListFolderContinueError *routeError,
+                        DBRequestError *networkError) {
+        if (response) {
+            [list addObjectsFromArray:response.entries];
+            if ([response.hasMore boolValue]) {
+                [self listFolderContinueWithClient:client cursor:response.cursor list:list];
+            } else {
+                [self sendMediaListUpdatedWithList:list];
+            }
+        } else {
+            NSLog(@"%@\n%@\n", routeError, networkError);
+        }
+    }];
+}
+
+- (void)sendMediaListUpdatedWithList:(NSArray *)list
+{
+    self.currentFileList = [[list sortedArrayUsingComparator:^NSComparisonResult(id a, id b) {
+        NSString *first = [(DBFILESMetadata*)a name];
+        NSString *second = [(DBFILESMetadata*)b name];
+        return [first caseInsensitiveCompare:second];
+    }] copy];
+    APLog(@"found filtered metadata for %lu files", (unsigned long)self.currentFileList.count);
+    if ([self.delegate respondsToSelector:@selector(mediaListUpdated)]) {
+        [self.delegate mediaListUpdated];
+    }
+}
+
 - (void)listFiles:(NSString *)path
 {
     // DropBox API prefers an empty path than a '/'
     if (!path || [path isEqualToString:@"/"]) {
         path = @"";
     }
+
+    NSMutableArray<DBFILESMetadata *> *stock = [[NSMutableArray alloc] init];
+
     [[[self client].filesRoutes listFolder:path] setResponseBlock:^(DBFILESListFolderResult * _Nullable result, DBFILESListFolderError * _Nullable routeError, DBRequestError * _Nullable networkError) {
         if (result) {
-            self.currentFileList = [result.entries sortedArrayUsingComparator:^NSComparisonResult(id a, id b) {
-                NSString *first = [(DBFILESMetadata*)a name];
-                NSString *second = [(DBFILESMetadata*)b name];
-                return [first caseInsensitiveCompare:second];
-            }];
-            APLog(@"found filtered metadata for %lu files", (unsigned long)self.currentFileList.count);
-            if ([self.delegate respondsToSelector:@selector(mediaListUpdated)])
-                [self.delegate mediaListUpdated];
+            if ([result.hasMore boolValue]) {
+                [self listFolderContinueWithClient:self->_client cursor:result.cursor list:stock];
+            } else {
+                [self sendMediaListUpdatedWithList:result.entries];
+            }
         } else {
             APLog(@"listFiles failed with network error %li and error tag %li", (long)networkError.statusCode, (long)networkError.tag);
             [self _handleError:[NSError errorWithDomain:networkError.description code:networkError.statusCode.integerValue userInfo:nil]];
@@ -220,9 +251,6 @@
         [self _handleError:[NSError errorWithDomain:NSLocalizedString(@"GDRIVE_ERROR_DOWNLOADING_FILE", nil) code:415 userInfo:nil]];
         return;
     }
-
-    // Need to replace all ' ' by '_' because it causes a `NSInvalidArgumentException ... destination path is nil` in the dropbox library.
-    destination = [destination stringByReplacingOccurrencesOfString:@" " withString:@"_"];
 
     destination = [self createPotentialPathFrom:destination];
     destination = [destination
@@ -273,10 +301,11 @@
     [[self.client.filesRoutes getTemporaryLink:path] setResponseBlock:^(DBFILESGetTemporaryLinkResult * _Nullable result, DBFILESGetTemporaryLinkError * _Nullable routeError, DBRequestError * _Nullable networkError) {
 
         if (result) {
-            VLCMedia *media = [VLCMedia mediaWithURL:[NSURL URLWithString:result.link]];
+            VLCMedia *media = [self setMediaNameMetadata:[VLCMedia mediaWithURL:[NSURL URLWithString:result.link]]
+                                                withName:result.metadata.name];
             VLCMediaList *medialist = [[VLCMediaList alloc] init];
             [medialist addMedia:media];
-            [[VLCPlaybackController sharedInstance] playMediaList:medialist firstIndex:0 subtitlesFilePath:nil];
+            [[VLCPlaybackService sharedInstance] playMediaList:medialist firstIndex:0 subtitlesFilePath:nil];
 #if TARGET_OS_TV
             if (self.lastKnownNavigationController) {
                 VLCFullscreenMovieTVViewController *movieVC = [VLCFullscreenMovieTVViewController fullscreenMovieTVViewController];

@@ -41,11 +41,11 @@
 
     [self.tableView registerNib:[UINib nibWithNibName:@"VLCCloudServiceCell" bundle:nil] forCellReuseIdentifier:@"CloudServiceCell"];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(themeDidChange) name:kVLCThemeDidChangeNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(authenticationSessionsChanged:) name:VLCOneDriveControllerSessionUpdated object:nil];
     [self themeDidChange];
 
     self.dropboxTableViewController = [[VLCDropboxTableViewController alloc] initWithNibName:@"VLCCloudStorageTableViewController" bundle:nil];
     self.googleDriveTableViewController = [[VLCGoogleDriveTableViewController alloc] initWithNibName:@"VLCCloudStorageTableViewController" bundle:nil];
-    [[VLCBoxController sharedInstance] startSession];
     self.boxTableViewController = [[VLCBoxTableViewController alloc] initWithNibName:@"VLCCloudStorageTableViewController" bundle:nil];
     self.oneDriveTableViewController = [[VLCOneDriveTableViewController alloc] initWithNibName:@"VLCCloudStorageTableViewController" bundle:nil];
     self.documentPickerController = [VLCDocumentPickerController new];
@@ -69,7 +69,6 @@
 
 - (void)viewWillAppear:(BOOL)animated
 {
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(authenticationSessionsChanged:) name:VLCOneDriveControllerSessionUpdated object:nil];
     [self.tableView reloadData];
     [super viewWillAppear:animated];
 
@@ -80,7 +79,9 @@
 
 - (void)authenticationSessionsChanged:(NSNotification *)notification
 {
-    [self.tableView reloadData];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.tableView reloadData];
+    });
 }
 
 - (NSString *)detailText
@@ -97,7 +98,7 @@
 {
     int i = [[VLCDropboxController sharedInstance] isAuthorized] ? 1 : 0;
     i += [[VLCGoogleDriveController sharedInstance] isAuthorized] ? 1 : 0;
-    i += [[BoxSDK sharedSDK].OAuth2Session isAuthorized] ? 1 : 0;
+    i += [[VLCBoxController sharedInstance] isAuthorized] ? 1 : 0;
     i += [[VLCOneDriveController sharedInstance] isAuthorized] ? 1 : 0;
     return i;
 }
@@ -154,7 +155,7 @@
         }
         case 2: {
             //Box
-            BOOL isAuthorized = [[BoxSDK sharedSDK].OAuth2Session isAuthorized];
+            BOOL isAuthorized = [[VLCBoxController sharedInstance] isAuthorized];
             cell.icon.image = [UIImage imageNamed:@"BoxCell"];
             cell.cloudTitle.text = @"Box";
             cell.cloudInformation.text = isAuthorized ? NSLocalizedString(@"LOGGED_IN", "") : NSLocalizedString(@"LOGIN", "");
@@ -175,7 +176,7 @@
         case 4:
             //Cloud Drives
             cell.icon.image = [UIImage imageNamed:@"iCloudCell"];
-            cell.lonesomeCloudTitle.text = NSLocalizedString(@"CLOUD_SERVICES", nil);
+            cell.lonesomeCloudTitle.text = @"iCloud";
             cell.cloudTitle.text = cell.cloudInformation.text = @"";
             break;
         default:

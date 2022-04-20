@@ -12,20 +12,23 @@ It's currently written in Objective-C / Swift and uses [VLCKit](https://code.vid
 
 - [Requirements](#requirements)
 - [Building](#building)
-    - [VLC-iOS](#vlc-ios)
-    - [Custom VLCKit](#custom-vlckit)
-    - [Beginner's Guide](#beginners-guide)
+  - [VLC-iOS](#vlc-ios)
+  - [Custom VLCKit](#custom-vlckit)
+  - [Beginner's Guide](#beginners-guide)
 - [Contribute](#contribute)
+  - [Pull request](#pull-request)
+  - [Commit](#commit)
+  - [Gitlab issues](#gitlab-issues)
 - [Communication](#communication)
-    - [Forum](#forum)
-    - [Issues](#issues)
-    - [IRC](#irc)
+  - [Forum](#forum)
+  - [Issues](#issues)
+  - [IRC](#irc)
 - [Code of Conduct](#code-of-conduct)
 - [License](#license)
 - [More](#more)
 
 ## Requirements
-* Xcode 9.0+
+* Xcode 11.0+
 * macOS 10.12+
 * Cocoapods 1.4+
 
@@ -33,12 +36,17 @@ It's currently written in Objective-C / Swift and uses [VLCKit](https://code.vid
 
 ### VLC-iOS
 
-1. Run `bundle install`.
-2. Run `bundle exec pod install`.
-3. Open `VLC.xcworkspace`.
-4. Hit "Build and Run".
+1. Clone VLC-iOS:
 
-### Custom VLCkit
+    `git clone https://code.videolan.org/videolan/vlc-ios.git`
+
+2. Run the command `[sudo] gem install cocoapods` (and then `[sudo] arch -x86_64 gem install ffi` on Apple Silicon devices).    
+3. Run `pod install` (or `arch -x86_64 pod install` on Apple Silicon devices).
+4. Open `VLC.xcworkspace`.
+5. Hit "Build and Run".
+
+
+### Custom VLCKit
 
 Mostly for debugging or advanced users, you might want to have a custom local VLCKit build.
 
@@ -57,7 +65,7 @@ Mostly for debugging or advanced users, you might want to have a custom local VL
 
     Add `-n` if you want to use you own VLC repository for VLCKit (See [VLCKit README.md](https://code.videolan.org/videolan/VLCKit/blob/master/README.md)).
 
-3. Replace the MobileVLCKit.framework with the one you just build.
+3. Replace the MobileVLCKit.framework with the one you just built.
 
     Inside your vlc-ios folder, after a `pod update`, do:
 
@@ -85,27 +93,27 @@ Pull request are more than welcome! If you do submit one, please make sure to us
 
 We try to follow a simple set of rules, outlined by this [guide](https://chris.beams.io/posts/git-commit/).
 
-Additionally, commit messages should have all the information needed to understand the commit easily as the follwing:
+Additionally, commit messages should have all the information needed to understand the commit easily as the following:
 
 ```
     Subject: Brief description
 
     Description in detail if needed.
 
-    (ticket related action)
+    ticket related action
 ```
 
 For example:
 
 ```
-    UPnP: Remove iOS 7 compatiblity code
+    UPnP: Remove iOS 7 compatibility code
 
-    (closes #166)
+    Closes #166
 ```
 
 ### Gitlab issues
 
-You can look through issues we currently have on the [VideoLAN Gitlab](https://code.videolan.org/videolan/vlc-ios/issues).
+You can look through issues we currently have on the [VideoLAN GitLab](https://code.videolan.org/videolan/vlc-ios/issues).
 
 A [beginner friendly](https://code.videolan.org/videolan/vlc-ios/issues?label_name%5B%5D=Beginner+friendly) tag is available if you don't know where to start.
 
@@ -119,7 +127,7 @@ If you have any question or if you're not sure it's actually an issue, please vi
 
 You have encountered an issue and wish to report it to the VLC dev team?
 
-You can create one on our [Gitlab](https://code.videolan.org/videolan/vlc-ios/issues) or on our [bug tracker](https://trac.videolan.org/vlc/).
+You can create one on our [GitLab](https://code.videolan.org/videolan/vlc-ios/issues) or on our [bug tracker](https://trac.videolan.org/vlc/).
 
 Before creating an issue or ticket, please double check for duplicates!
 

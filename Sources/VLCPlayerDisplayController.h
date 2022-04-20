@@ -10,8 +10,16 @@
  * Refer to the COPYING file of the official project for license.
  *****************************************************************************/
 
-@class VLCPlaybackController;
-@class VLCService;
+#import "VLCPlaybackService.h"
+
+@class VLCPlaybackService;
+@class VLCServices;
+@class VLCQueueViewController;
+
+NS_ASSUME_NONNULL_BEGIN
+
+extern NSString * const VLCPlayerDisplayControllerDisplayMiniPlayer;
+extern NSString * const VLCPlayerDisplayControllerHideMiniPlayer;
 
 typedef NS_ENUM(NSUInteger, VLCPlayerDisplayControllerDisplayMode) {
     VLCPlayerDisplayControllerDisplayModeFullscreen,
@@ -29,18 +37,28 @@ typedef NS_ENUM(NSUInteger, VLCPlayerDisplayControllerDisplayMode) {
 
 @end
 
+@protocol VLCMiniPlayer;
+
 @interface VLCPlayerDisplayController : UIViewController
 
 @property (nonatomic, assign) VLCPlayerDisplayControllerDisplayMode displayMode;
-@property (nonatomic, weak) VLCPlaybackController *playbackController;
-@property (nonatomic, strong) NSLayoutYAxisAnchor *realBottomAnchor;
+@property (nonatomic, weak, nullable) VLCPlaybackService *playbackController;
+@property (nonatomic, strong, nullable) NSLayoutYAxisAnchor *realBottomAnchor;
+@property (nonatomic, strong, nullable) NSLayoutConstraint *leadingConstraint;
+@property (nonatomic, strong, nullable) NSLayoutConstraint *trailingConstraint;
+@property (nonatomic, strong, nullable) NSLayoutConstraint *bottomConstraint;
+@property (nonatomic, strong, nullable) NSLayoutConstraint *playqueueBottomConstraint;
+@property (nonatomic, readonly) BOOL isMiniPlayerVisible;
+@property (nonatomic, readonly) BOOL hintingPlayqueue;
+@property (nonatomic, strong, nullable) UIView *miniPlaybackView;
+@property (nonatomic, strong, readonly, nullable) VLCQueueViewController *queueViewController;
 
 - (instancetype)init NS_UNAVAILABLE;
-- (instancetype)initWithNibName:(NSString *)nibNameOrNil
-                         bundle:(NSBundle *)nibBundleOrNil NS_UNAVAILABLE;
-- (instancetype)initWithCoder:(NSCoder *)aDecoder NS_UNAVAILABLE;
+- (instancetype)initWithNibName:(nullable NSString *)nibNameOrNil
+                                 bundle:(nullable NSBundle *)nibBundleOrNil NS_UNAVAILABLE;
+- (nullable instancetype)initWithCoder:(NSCoder *)aDecoder NS_UNAVAILABLE;
 
-- (instancetype)initWithServices:(id)services NS_DESIGNATED_INITIALIZER;
+- (nullable instancetype)initWithServices:(nullable id)services NS_DESIGNATED_INITIALIZER;
 
 - (void)showFullscreenPlayback;
 - (void)closeFullscreenPlayback;
@@ -48,4 +66,8 @@ typedef NS_ENUM(NSUInteger, VLCPlayerDisplayControllerDisplayMode) {
 - (void)pushPlaybackView;
 - (void)dismissPlaybackView;
 
+- (void)hintPlayqueueWithDelay:(NSTimeInterval)delay;
+
 @end
+
+NS_ASSUME_NONNULL_END

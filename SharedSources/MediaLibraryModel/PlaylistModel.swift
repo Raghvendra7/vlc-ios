@@ -14,19 +14,23 @@ class PlaylistModel: MLBaseModel {
 
     var sortModel = SortModel([.alpha, .duration])
 
-    var updateView: (() -> Void)?
+    var observable = Observable<MediaLibraryBaseModelObserver>()
 
     var files = [VLCMLPlaylist]()
 
-    var cellType: BaseCollectionViewCell.Type { return MovieCollectionViewCell.self }
+    var cellType: BaseCollectionViewCell.Type {
+        return UserDefaults.standard.bool(forKey: "\(kVLCAudioLibraryGridLayout)\(name)") ? MovieCollectionViewCell.self : MediaCollectionViewCell.self
+    }
 
     var medialibrary: MediaLibraryService
+
+    var name: String = "PLAYLISTS"
 
     var indicatorName: String = NSLocalizedString("PLAYLISTS", comment: "")
 
     required init(medialibrary: MediaLibraryService) {
         self.medialibrary = medialibrary
-        medialibrary.addObserver(self)
+        medialibrary.observable.addObserver(self)
         files = medialibrary.playlists()
     }
 
@@ -39,11 +43,26 @@ class PlaylistModel: MLBaseModel {
         files.append(item)
     }
 
-    func delete(_ items: [VLCMLObject]) {
-        for playlist in items where playlist is VLCMLPlaylist {
+    func delete(_ items: [VLCMLPlaylist]) {
+        for case let playlist in items {
             if !(medialibrary.deletePlaylist(with: playlist.identifier())) {
                 assertionFailure("PlaylistModel: Failed to delete playlist: \(playlist.identifier())")
             }
+            if playlist.isReadOnly {
+                do {
+                    if let path = playlist.mrl?.path, !path.isEmpty {
+                        try FileManager.default.removeItem(atPath: path)
+                    }
+                } catch let error as NSError {
+                    assertionFailure("PlaylistModel: Delete failed: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        // Update directly the UI without waiting the delegate to avoid showing 'ghost' items
+        filterFilesFromDeletion(of: items)
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
         }
     }
 
@@ -54,7 +73,9 @@ class PlaylistModel: MLBaseModel {
             return
         }
         append(playlist)
-        updateView?()
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
     }
 }
 
@@ -64,14 +85,9 @@ extension PlaylistModel {
         files = medialibrary.playlists(sortingCriteria: criteria, desc: desc)
         sortModel.currentSort = criteria
         sortModel.desc = desc
-        updateView?()
-    }
-}
-
-// MARK: - Edit
-extension PlaylistModel: EditableMLModel {
-    func editCellType() -> BaseCollectionViewCell.Type {
-        return MediaEditCell.self
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
     }
 }
 
@@ -86,12 +102,27 @@ extension VLCMLPlaylist: SearchableMLModel {
 extension PlaylistModel: MediaLibraryObserver {
     func medialibrary(_ medialibrary: MediaLibraryService, didAddPlaylists playlists: [VLCMLPlaylist]) {
         playlists.forEach({ append($0) })
-        updateView?()
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
     }
 
-    func medialibrary(_ medialibrary: MediaLibraryService, didModifyPlaylists playlists: [VLCMLPlaylist]) {
+    func medialibrary(_ medialibrary: MediaLibraryService,
+                      didModifyPlaylistsWithIds playlistsIds: [NSNumber]) {
+        var playlists = [VLCMLPlaylist]()
+
+        playlistsIds.forEach() {
+            guard let safePlaylist = medialibrary.medialib.playlist(withIdentifier: $0.int64Value)
+                else {
+                    return
+            }
+            playlists.append(safePlaylist)
+        }
+
         files = swapModels(with: playlists)
-        updateView?()
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
     }
 
     func medialibrary(_ medialibrary: MediaLibraryService, didDeletePlaylistsWithIds playlistsIds: [NSNumber]) {
@@ -101,7 +132,13 @@ extension PlaylistModel: MediaLibraryObserver {
             }
             return true
         }
-        updateView?()
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
+    }
+
+    func medialibraryDidStartRescan() {
+        files.removeAll()
     }
 }
 
@@ -114,21 +151,6 @@ extension VLCMLPlaylist {
         return String(format: tracksString, mediaCount)
     }
 
-    @objc func thumbnail() -> UIImage? {
-        var image = UIImage(contentsOfFile: artworkMrl())
-        if image == nil {
-            for track in files() ?? [] where track.isThumbnailGenerated() {
-                image = UIImage(contentsOfFile: track.thumbnail()?.path ?? "")
-                break
-            }
-        }
-        if image == nil {
-            let isDarktheme = PresentationTheme.current == PresentationTheme.darkTheme
-            image = isDarktheme ? UIImage(named: "movie-placeholder-dark") : UIImage(named: "movie-placeholder-white")
-        }
-        return image
-    }
-
     func accessibilityText() -> String? {
         return name + " " + numberOfTracksString()
     }
@@ -139,11 +161,12 @@ extension VLCMLPlaylist: MediaCollectionModel {
         return nil
     }
 
-    func files() -> [VLCMLMedia]? {
+    func files(with criteria: VLCMLSortingCriteria = .alpha,
+               desc: Bool = false) -> [VLCMLMedia]? {
         return media
     }
 
-    func title() -> String? {
+    func title() -> String {
         return name
     }
 }

@@ -2,10 +2,11 @@
  * VLCLocalNetworkServiceBrowserMediaDiscoverer.m
  * VLC for iOS
  *****************************************************************************
- * Copyright (c) 2015 VideoLAN. All rights reserved.
+ * Copyright (c) 2015, 2020-2021 VideoLAN. All rights reserved.
  * $Id$
  *
  * Authors: Tobias Conradi <videolan # tobias-conradi.de>
+ *          Felix Paul Kühne <fkuehne # videolan.org>
  *
  * Refer to the COPYING file of the official project for license.
  *****************************************************************************/
@@ -13,8 +14,13 @@
 
 #import "VLCLocalNetworkServiceBrowserMediaDiscoverer.h"
 #import "VLCLocalNetworkServiceVLCMedia.h"
+#import "VLCLocalNetworkServiceBrowserUPnP.h"
 
 @interface VLCLocalNetworkServiceBrowserMediaDiscoverer () <VLCMediaListDelegate>
+{
+    VLCLibrary *_internalLibraryInstance;
+    BOOL _isUPnPdiscoverer;
+}
 @property (nonatomic, readonly) NSString *serviceName;
 @property (nonatomic, readwrite) VLCMediaDiscoverer* mediaDiscoverer;
 
@@ -29,6 +35,20 @@
     if (self) {
         _name = name;
         _serviceName = serviceName;
+
+        /* special case for UPnP to allow custom SAT>IP channel lists
+         * launching an extra libvlc instance just for this is expensive,
+         * so it should be only if explicitly demanded by the user */
+        _isUPnPdiscoverer = [serviceName isEqualToString:@"upnp"];
+        if (_isUPnPdiscoverer) {
+            NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+            NSString *satipURLstring = [defaults stringForKey:kVLCSettingNetworkSatIPChannelListUrl];
+            if (satipURLstring.length > 0) {
+                NSArray *libVLCOptions = @[[NSString stringWithFormat:@"--%@=%@", kVLCSettingNetworkSatIPChannelListUrl, satipURLstring],
+                                           [NSString stringWithFormat:@"--%@=%@", kVLCSettingNetworkSatIPChannelList, kVLCSettingNetworkSatIPChannelListCustom]];
+                _internalLibraryInstance = [[VLCLibrary alloc] initWithOptions:libVLCOptions];
+            }
+        }
     }
     return self;
 }
@@ -42,20 +62,30 @@
     if (self.mediaDiscoverer) {
         return;
     }
-    VLCMediaDiscoverer *discoverer = [[VLCMediaDiscoverer alloc] initWithName:self.serviceName];
+    VLCMediaDiscoverer *discoverer;
+
+    /* special case for UPnP to allow custom SAT>IP channel lists */
+    if (_internalLibraryInstance && _isUPnPdiscoverer) {
+        discoverer = [[VLCMediaDiscoverer alloc] initWithName:self.serviceName libraryInstance:_internalLibraryInstance];
+    } else {
+        discoverer = [[VLCMediaDiscoverer alloc] initWithName:self.serviceName];
+    }
+
     self.mediaDiscoverer = discoverer;
-    /* enable this boolean to debug the discovery session
-     * note that this will not necessarily enable debug for playback */
-#ifndef NDEBUG
-    self.mediaDiscoverer.libraryInstance.debugLogging = NO;
+#if MEDIA_DISCOVERY_DEBUG
+    self.mediaDiscoverer.libraryInstance.debugLogging = YES;
+    self.mediaDiscoverer.libraryInstance.debugLoggingLevel = 4;
 #endif
     [discoverer startDiscoverer];
     discoverer.discoveredMedia.delegate = self;
-
 }
 
 - (void)stopDiscovery
 {
+    /* the UPnP module is special and may not be terminated */
+    if ([self.serviceName isEqualToString:VLCNetworkServerProtocolIdentifierUPnP]) {
+        return;
+    }
     VLCMediaDiscoverer *discoverer = self.mediaDiscoverer;
     discoverer.discoveredMedia.delegate = nil;
     [discoverer stopDiscoverer];

@@ -18,7 +18,6 @@
 #endif
 
 #import <MobileVLCKit/MobileVLCKit.h>
-#import <MediaLibraryKit/MediaLibraryKit.h>
 
 #import "VLCConstants.h"
 #import "UIColor+Presets.h"
@@ -30,3 +29,7 @@
 #else
 #define APLog(format, ...)
 #endif
+
+#define MEDIA_PLAYBACK_DEBUG 0
+#define MEDIA_DISCOVERY_DEBUG 0
+#define WIFI_SHARING_DEBUG 0

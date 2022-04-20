@@ -12,7 +12,6 @@
 
 #import "VLCOneDriveController.h"
 #import "VLCOneDriveConstants.h"
-#import "UIDevice+VLC.h"
 #import "NSString+SupportedMedia.h"
 #import <OneDriveSDK.h>
 
@@ -24,6 +23,7 @@
 {
     NSMutableArray *_pendingDownloads;
     BOOL _downloadInProgress;
+    NSProgress *_progress;
 
     CGFloat _averageSpeed;
     CGFloat _fileSize;
@@ -35,6 +35,8 @@
 }
 
 @end
+
+static void *ProgressObserverContext = &ProgressObserverContext;
 
 @implementation VLCOneDriveController
 
@@ -54,11 +56,10 @@
 {
     self = [super init];
 
-    if (!self)
-        return self;
-//    [self restoreFromSharedCredentials];
-    _oneDriveClient = [ODClient loadCurrentClient];
-    [self setupSession];
+    if (self) {
+        _oneDriveClient = [ODClient loadCurrentClient];
+        [self setupSession];
+    }
     return self;
 }
 
@@ -81,13 +82,32 @@
 {
     _presentingViewController = presentingViewController;
 
+    if (@available(iOS 11.0, *)) {
+        [[UINavigationBar appearance] setPrefersLargeTitles:NO];
+    }
+
     [ODClient authenticatedClientWithCompletion:^(ODClient *client, NSError *error) {
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            if (@available(iOS 11.0, *)) {
+                [VLCAppearanceManager setupAppearanceWithTheme:PresentationTheme.current];
+            }
+            if (@available(iOS 13.0, *)) {
+                [VLCAppearanceManager setupUserInterfaceStyleWithTheme:PresentationTheme.current];
+            }
+        });
         if (error) {
             [self authFailed:error];
             return;
         }
         self->_oneDriveClient = client;
         [self authSuccess];
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (self.delegate) {
+                if ([self.delegate respondsToSelector:@selector(sessionWasUpdated)])
+                    [self.delegate performSelector:@selector(sessionWasUpdated)];
+            }
+        });
     }];
 }
 
@@ -103,6 +123,9 @@
         self->_rootItemID = nil;
         self->_parentItem = nil;
         dispatch_async(dispatch_get_main_queue(), ^{
+            if (self.delegate) {
+                [self.delegate performSelector:@selector(mediaListUpdated)];
+            }
             if (self->_presentingViewController) {
                 [self->_presentingViewController.navigationController popViewControllerAnimated:YES];
             }
@@ -120,20 +143,8 @@
     return _oneDriveClient != nil;
 }
 
-- (void)authSuccess
+- (void)sessionWasUpdated
 {
-    APLog(@"VLCOneDriveController: Authentication complete.");
-
-    [self setupSession];
-
-    [[NSNotificationCenter defaultCenter] postNotificationName:VLCOneDriveControllerSessionUpdated object:self];
-//    [self shareCredentials];
-}
-
-- (void)authFailed:(NSError *)error
-{
-    APLog(@"VLCOneDriveController: Authentication failure.");
-
     if (self.delegate) {
         if ([self.delegate respondsToSelector:@selector(sessionWasUpdated)])
             [self.delegate performSelector:@selector(sessionWasUpdated)];
@@ -141,35 +152,24 @@
     [[NSNotificationCenter defaultCenter] postNotificationName:VLCOneDriveControllerSessionUpdated object:self];
 }
 
-- (void)shareCredentials
+- (void)authSuccess
 {
-    // FIXME: https://github.com/OneDrive/onedrive-sdk-ios/issues/187
+    APLog(@"VLCOneDriveController: Authentication complete.");
 
-/* share our credentials */
-//    LiveAuthStorage *authStorage = [[LiveAuthStorage alloc] initWithClientId:kVLCOneDriveClientID];
-//    _oneDriveClient = [[ODClient alloc] ]
-//    _oneDriveClient.authProvider.accountSession.refreshToken;
-//NSString *credentials = [authStorage refreshToken];
-//  NSString *credentials = [_oneDriveClient token]
-//    if (credentials == nil)
-//        return;
-//
-//    NSUbiquitousKeyValueStore *ubiquitousStore = [NSUbiquitousKeyValueStore defaultStore];
-//    [ubiquitousStore setString:credentials forKey:kVLCStoreOneDriveCredentials];
-//    [ubiquitousStore synchronize];
+    [self setupSession];
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self sessionWasUpdated];
+    });
 }
 
-- (BOOL)restoreFromSharedCredentials
+- (void)authFailed:(NSError *)error
 {
-//    LiveAuthStorage *authStorage = [[LiveAuthStorage alloc] initWithClientId:kVLCOneDriveClientID];
-//    NSUbiquitousKeyValueStore *ubiquitousStore = [NSUbiquitousKeyValueStore defaultStore];
-//    [ubiquitousStore synchronize];
-//    NSString *credentials = [ubiquitousStore stringForKey:kVLCStoreOneDriveCredentials];
-//    if (!credentials)
-//        return NO;
-//
-//    [authStorage setRefreshToken:credentials];
-    return YES;
+    APLog(@"VLCOneDriveController: Authentication failure.");
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self sessionWasUpdated];
+    });
 }
 
 #pragma mark - listing
@@ -198,10 +198,30 @@
 
 }
 
+- (void)loadODItemsContinueWithRequest:(ODChildrenCollectionRequest *)request
+                                result:(NSMutableArray *)result
+{
+    __weak typeof(self) weakSelf = self;
+    [request getWithCompletion:^(ODCollection *response,
+                                 ODChildrenCollectionRequest *nextRequest, NSError *error) {
+        if (!error) {
+            [result addObjectsFromArray:response.value];
+            if (nextRequest != NULL) {
+                [weakSelf loadODItemsContinueWithRequest:nextRequest result:result];
+            } else {
+                [weakSelf sendMediaListUpdateWithContent:result completionHandler:NULL];
+            }
+        } else {
+            [weakSelf handleLoadODItemErrorWithError:error itemID:@"root"];
+        }
+    }];
+}
+
 - (void)loadODItemsWithCompletionHandler:(void (^)(void))completionHandler
 {
     NSString *itemID = _currentItem ? _currentItem.id : @"root";
     ODChildrenCollectionRequest * request = [[[[_oneDriveClient drive] items:itemID] children] request];
+    NSMutableArray<ODItem *> *requestContent = [[NSMutableArray alloc] init];
 
     // Clear all current
     [_currentItems removeAllObjects];
@@ -210,14 +230,24 @@
 
     [request getWithCompletion:^(ODCollection *response, ODChildrenCollectionRequest *nextRequest, NSError *error) {
         if (!error) {
-            [self prepareODItems:response.value];
-            if (completionHandler) {
-                completionHandler();
+            if (nextRequest != NULL) {
+                [weakSelf loadODItemsContinueWithRequest:nextRequest result:requestContent];
+            } else {
+                [weakSelf sendMediaListUpdateWithContent:response.value
+                                       completionHandler:completionHandler];
             }
         } else {
             [weakSelf handleLoadODItemErrorWithError:error itemID:itemID];
         }
     }];
+}
+
+- (void)sendMediaListUpdateWithContent:(NSArray *)content completionHandler:(void (^)(void))completionHandler
+{
+    [self prepareODItems:content];
+    if (completionHandler) {
+        completionHandler();
+    }
 }
 
 - (void)handleLoadODItemErrorWithError:(NSError *)error itemID:(NSString *)itemID
@@ -374,7 +404,7 @@
 - (void)downloadODItem:(ODItem *)item
 {
     [self downloadStarted];
-    [[[_oneDriveClient.drive items:item.id] contentRequest]
+    ODURLSessionDownloadTask *task = [[[_oneDriveClient.drive items:item.id] contentRequest]
      downloadWithCompletion:^(NSURL *filePath, NSURLResponse *response, NSError *error) {
          if (error) {
              [self downloadFailedWithErrorDescription: error.localizedDescription];
@@ -396,6 +426,8 @@
              [self downloadEnded];
          });
      }];
+    task.progress.totalUnitCount = item.size;
+    [self showProgress:task.progress];
 }
 
 - (void)_triggerNextDownload
@@ -429,6 +461,7 @@
     [[NSNotificationCenter defaultCenter] postNotificationName:NSNotification.VLCNewFileAddedNotification
                                                         object:self];
 #endif
+    [self hideProgress];
     _downloadInProgress = NO;
     [self _triggerNextDownload];
 }
@@ -436,6 +469,20 @@
 - (void)downloadFailedWithErrorDescription:(NSString *)description
 {
     APLog(@"VLCOneDriveController: Download failed (%@)", description);
+}
+
+- (void)showProgress:(NSProgress *)progress
+{
+    _progress = progress;
+    [progress addObserver:self forKeyPath:NSStringFromSelector(@selector(fractionCompleted)) options:0 context:ProgressObserverContext];
+}
+
+- (void)hideProgress
+{
+    if (_progress) {
+        [_progress removeObserver:self forKeyPath:NSStringFromSelector(@selector(fractionCompleted)) context:ProgressObserverContext];
+        _progress = nil;
+    }
 }
 
 - (void)progressUpdatedTo:(CGFloat)percentage receivedDataSize:(CGFloat)receivedDataSize expectedDownloadSize:(CGFloat)expectedDownloadSize
@@ -448,6 +495,18 @@
 {
     if ([self.delegate respondsToSelector:@selector(currentProgressInformation:)])
         [self.delegate currentProgressInformation:progress];
+}
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
+{
+    if (context == ProgressObserverContext) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSProgress *progress = object;
+            [self progressUpdatedTo:progress.fractionCompleted receivedDataSize:progress.completedUnitCount expectedDownloadSize:progress.totalUnitCount];
+        });
+    } else {
+        [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+    }
 }
 
 - (void)calculateRemainingTime:(CGFloat)receivedDataSize expectedDownloadSize:(CGFloat)expectedDownloadSize

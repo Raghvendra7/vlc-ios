@@ -9,32 +9,32 @@
  * Refer to the COPYING file of the official project for license.
  *****************************************************************************/
 
-protocol EditControllerDelegate: class {
-    func editController(editController: EditController, cellforItemAt indexPath: IndexPath) -> MediaEditCell?
+protocol EditControllerDelegate: AnyObject {
+    func editController(editController: EditController, cellforItemAt indexPath: IndexPath) -> BaseCollectionViewCell?
     func editController(editController: EditController, present viewController: UIViewController)
+    func editControllerDidSelectMultipleItem(editContrller: EditController)
+    func editControllerDidDeSelectMultipleItem(editContrller: EditController)
+    func editControllerDidFinishEditing(editController: EditController?)
 }
 
 class EditController: UIViewController {
+    // Cache selectedIndexPath separately to indexPathsForSelectedItems in order to have persistance
     private var selectedCellIndexPaths = Set<IndexPath>()
     private let model: MediaLibraryBaseModel
     private let mediaLibraryService: MediaLibraryService
-    private lazy var addToPlaylistViewController: AddToPlaylistViewController = {
-        var addToPlaylistViewController = AddToPlaylistViewController(playlists: mediaLibraryService.playlists())
-        addToPlaylistViewController.delegate = self
-        return addToPlaylistViewController
-    }()
+    private let presentingView: UICollectionView
+    private(set) var editActions: EditActions
+    private var isAllSelected: Bool = false
 
     weak var delegate: EditControllerDelegate?
 
-    override func loadView() {
-        let editToolbar = EditToolbar(category: model)
-        editToolbar.delegate = self
-        self.view = editToolbar
-    }
-
-    init(mediaLibraryService: MediaLibraryService, model: MediaLibraryBaseModel) {
+    init(mediaLibraryService: MediaLibraryService,
+         model: MediaLibraryBaseModel,
+         presentingView: UICollectionView) {
         self.mediaLibraryService = mediaLibraryService
         self.model = model
+        self.presentingView = presentingView
+        self.editActions = EditActions(model: model, mediaLibraryService: mediaLibraryService)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -42,8 +42,32 @@ class EditController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func resetSelections() {
+    func resetSelections(resetUI: Bool) {
+        for indexPath in selectedCellIndexPaths {
+            presentingView.deselectItem(at: indexPath, animated: true)
+            if resetUI {
+                collectionView(presentingView, didDeselectItemAt: indexPath)
+            }
+        }
         selectedCellIndexPaths.removeAll()
+        isAllSelected = false
+    }
+
+    func selectAll() {
+        isAllSelected = !isAllSelected
+        if isAllSelected {
+            (0..<presentingView.numberOfSections).compactMap {
+                section -> [IndexPath]? in
+                return (0..<presentingView.numberOfItems(inSection: section)).compactMap({
+                    item -> IndexPath? in
+                    return IndexPath(item: item, section: section)
+                })}
+            .flatMap { $0 }.forEach { (indexPath) in
+                collectionView(presentingView, didSelectItemAt: indexPath)
+            }
+        } else {
+            resetSelections(resetUI: true)
+        }
     }
 }
 
@@ -83,7 +107,7 @@ private extension EditController {
         })
 
         let cancelButton = UIAlertAction(title: NSLocalizedString("BUTTON_CANCEL", comment: ""),
-                                         style: .default)
+                                         style: .cancel)
 
 
         let confirmAction = UIAlertAction(title: info.confirmActionTitle, style: .default) {
@@ -98,184 +122,162 @@ private extension EditController {
 
         present(alertController, animated: true, completion: nil)
     }
-
-    private func createPlaylist(_ name: String) {
-        guard let playlist = mediaLibraryService.createPlaylist(with: name) else {
-            assertionFailure("MediaModel: createPlaylist: Failed to create a playlist.")
-            DispatchQueue.main.async {
-                VLCAlertViewController.alertViewManager(title: NSLocalizedString("ERROR_PLAYLIST_CREATION",
-                                                                                 comment: ""),
-                                                        viewController: self)
-            }
-            return
-        }
-
-        // In the case of Video, Tracks
-        if let files = model.anyfiles as? [VLCMLMedia] {
-            for index in selectedCellIndexPaths where index.row < files.count {
-                playlist.appendMedia(withIdentifier: files[index.row].identifier())
-            }
-        } else if let mediaCollectionArray = model.anyfiles as? [MediaCollectionModel] {
-            for index in selectedCellIndexPaths where index.row < mediaCollectionArray.count {
-                guard let tracks = mediaCollectionArray[index.row].files() else {
-                    assertionFailure("EditController: Fail to retrieve tracks.")
-                    DispatchQueue.main.async {
-                        VLCAlertViewController.alertViewManager(title: NSLocalizedString("ERROR_PLAYLIST_TRACKS",
-                                                                                         comment: ""),
-                                                                viewController: self)
-                    }
-                    return
-                }
-                tracks.forEach() {
-                    playlist.appendMedia(withIdentifier: $0.identifier())
-                }
-            }
-        }
-        selectedCellIndexPaths.removeAll()
-    }
 }
 
 // MARK: - VLCEditToolbarDelegate
 
 extension EditController: EditToolbarDelegate {
-    func addToNewPlaylist() {
-        let alertInfo = TextFieldAlertInfo(alertTitle: NSLocalizedString("PLAYLISTS", comment: ""),
-                                           placeHolder: NSLocalizedString("PLAYLIST_PLACEHOLDER",
-                                                                          comment: ""))
-        presentTextFieldAlert(with: alertInfo) {
-            [unowned self] text -> Void in
-            guard text != "" else {
-                DispatchQueue.main.async {
-                    VLCAlertViewController.alertViewManager(title: NSLocalizedString("ERROR_EMPTY_NAME",
-                                                                                     comment: ""),
-                                                            viewController: self)
+    private func getSelectedObjects() {
+        let files = model.anyfiles
+
+        for index in selectedCellIndexPaths where index.row < files.count {
+            if let mediaCollection = files[index.row] as? MediaCollectionModel {
+                guard let files = mediaCollection.files() else {
+                    assertionFailure("EditController: Fail to retrieve tracks.")
+                    DispatchQueue.main.async {
+                        VLCAlertViewController.alertViewManager(title: NSLocalizedString("ERROR_PLAYLIST_TRACKS",
+                                                                    comment: ""),
+                                                                viewController: self)
+                    }
+                    return
                 }
-                return
+                editActions.objects += files
+            } else {
+                editActions.objects.append(files[index.row])
             }
-            self.createPlaylist(text)
         }
     }
 
     func editToolbarDidAddToPlaylist(_ editToolbar: EditToolbar) {
-        if !mediaLibraryService.playlists().isEmpty && !selectedCellIndexPaths.isEmpty {
-            addToPlaylistViewController.playlists = mediaLibraryService.playlists()
-            delegate?.editController(editController: self,
-                                     present: addToPlaylistViewController)
-        } else {
-            addToNewPlaylist()
+        guard !selectedCellIndexPaths.isEmpty else {
+            return
+        }
+        editActions.objects.removeAll()
+        getSelectedObjects()
+        editActions.addToPlaylist({
+            [weak self] state in
+            if state == .success || state == .fail {
+                self?.resetSelections(resetUI: false)
+                self?.delegate?.editControllerDidFinishEditing(editController: self)
+            }
+        })
+    }
+
+    func editToolbarDidAddToMediaGroup(_ editToolbar: EditToolbar) {
+        guard !selectedCellIndexPaths.isEmpty else {
+            return
+        }
+        editActions.objects.removeAll()
+
+        for index in selectedCellIndexPaths where index.row < model.anyfiles.count {
+            editActions.objects.append(model.anyfiles[index.row])
+        }
+
+        editActions.addToMediaGroup() {
+            [weak self] state in
+            if state == .success || state == .fail {
+                self?.resetSelections(resetUI: false)
+                self?.delegate?.editControllerDidFinishEditing(editController: self)
+            }
+        }
+    }
+
+    func editToolbarDidRemoveFromMediaGroup(_ editToolbar: EditToolbar) {
+        guard !selectedCellIndexPaths.isEmpty else {
+            return
+        }
+
+        editActions.objects.removeAll()
+        getSelectedObjects()
+
+        editActions.removeFromMediaGroup() {
+            [weak self] state in
+            if state == .success || state == .fail {
+                self?.resetSelections(resetUI: false)
+                self?.delegate?.editControllerDidFinishEditing(editController: self)
+            }
         }
     }
 
     func editToolbarDidDelete(_ editToolbar: EditToolbar) {
-        var objectsToDelete = [VLCMLObject]()
-
-        for indexPath in selectedCellIndexPaths.sorted(by: { $0 > $1 }) {
-            objectsToDelete.append(model.anyfiles[indexPath.row])
-        }
-
-        let cancelButton = VLCAlertButton(title: NSLocalizedString("BUTTON_CANCEL", comment: ""))
-        let deleteButton = VLCAlertButton(title: NSLocalizedString("BUTTON_DELETE", comment: ""),
-                                          style: .destructive,
-                                          action: {
-                                            [weak self] action in
-                                            self?.model.delete(objectsToDelete)
-                                            self?.selectedCellIndexPaths.removeAll()
-        })
-
-        VLCAlertViewController.alertViewManager(title: NSLocalizedString("DELETE_TITLE", comment: ""),
-                                                errorMessage: NSLocalizedString("DELETE_MESSAGE", comment: ""),
-                                                viewController: (UIApplication.shared.keyWindow?.rootViewController)!,
-                                                buttonsAction: [cancelButton,
-                                                                deleteButton])
-    }
-
-    func editToolbarDidShare(_ editToolbar: EditToolbar, presentFrom button: UIButton) {
-        UIApplication.shared.beginIgnoringInteractionEvents()
-        let rootViewController = UIApplication.shared.keyWindow?.rootViewController
-        guard let controller = VLCActivityViewControllerVendor.activityViewController(forFiles: fileURLsFromSelection(), presenting: button, presenting: rootViewController) else {
-            UIApplication.shared.endIgnoringInteractionEvents()
+        guard !selectedCellIndexPaths.isEmpty else {
             return
         }
-        controller.popoverPresentationController?.sourceView = editToolbar
-        rootViewController?.present(controller, animated: true) {
-            UIApplication.shared.endIgnoringInteractionEvents()
+        editActions.objects.removeAll()
+        for indexPath in selectedCellIndexPaths.sorted(by: { $0 > $1 }) {
+            editActions.objects.append(model.anyfiles[indexPath.row])
         }
+
+        editActions.delete({
+            [weak self] state in
+            if state == .success || state == .fail {
+                self?.resetSelections(resetUI: false)
+                self?.delegate?.editControllerDidFinishEditing(editController: self)
+            }
+        })
     }
 
-    func fileURLsFromSelection() -> [URL] {
-        var fileURLS = [URL]()
-        for indexPath in selectedCellIndexPaths {
-            let file = model.anyfiles[indexPath.row]
-            if let collection = file as? MediaCollectionModel,
-                let files = collection.files() {
-                files.forEach {
-                    if let mainFile = $0.mainFile() {
-                        fileURLS.append(mainFile.mrl)
-                    }
-                }
-            } else if let media = file as? VLCMLMedia, let mainFile = media.mainFile() {
-                fileURLS.append(mainFile.mrl)
-            } else {
-                assertionFailure("we're trying to share something that doesn't have an mrl")
-                return fileURLS
-            }
+    func editToolbarDidShare(_ editToolbar: EditToolbar) {
+        guard !selectedCellIndexPaths.isEmpty else {
+            return
         }
-        return fileURLS
+        editActions.objects.removeAll()
+        getSelectedObjects()
+        editActions.share(origin: editToolbar.shareButton, {
+            [weak self] state in
+            if state == .success || state == .fail {
+                self?.resetSelections(resetUI: false)
+                self?.delegate?.editControllerDidFinishEditing(editController: self)
+            }
+        })
     }
 
     func editToolbarDidRename(_ editToolbar: EditToolbar) {
-        guard let indexPath = selectedCellIndexPaths.first else {
-            assertionFailure("EditController: Rename called without selection.")
+        guard !selectedCellIndexPaths.isEmpty else {
             return
         }
-
-        var mlObjectName = ""
-
-        let mlObject = model.anyfiles[indexPath.row]
-
-        if let media = mlObject as? VLCMLMedia {
-            mlObjectName = media.title
-        } else if let playlist = mlObject as? VLCMLPlaylist {
-            mlObjectName = playlist.name
-        } else {
-            assertionFailure("EditController: Rename called with wrong model.")
+        editActions.objects.removeAll()
+        for indexPath in selectedCellIndexPaths.sorted(by: { $0 > $1 }) {
+            editActions.objects.append(model.anyfiles[indexPath.row])
         }
-
-        // Not using VLCAlertViewController to have more customization in text fields
-        let alertInfo = TextFieldAlertInfo(alertTitle: String(format: NSLocalizedString("RENAME_MEDIA_TO", comment: ""), mlObjectName),
-                                           textfieldText: mlObjectName,
-                                           confirmActionTitle: NSLocalizedString("BUTTON_RENAME", comment: ""))
-        presentTextFieldAlert(with: alertInfo, completionHandler: {
-            [weak self] text -> Void in
-            guard text != "" else {
-                VLCAlertViewController.alertViewManager(title: NSLocalizedString("ERROR_RENAME_FAILED", comment: ""),
-                                                        errorMessage: NSLocalizedString("ERROR_EMPTY_NAME", comment: ""),
-                                                        viewController: (UIApplication.shared.keyWindow?.rootViewController)!)
-                return
-            }
-
-            let mlObject = self?.model.anyfiles[indexPath.row]
-
-            if let media = mlObject as? VLCMLMedia {
-                media.updateTitle(text)
-            } else if let playlist = mlObject as? VLCMLPlaylist {
-                playlist.updateName(text)
-            }
-
-           guard let strongself = self else {
-                return
-            }
-            strongself.delegate?.editController(editController: strongself, cellforItemAt: indexPath)?.isChecked = false
-            strongself.selectedCellIndexPaths.remove(indexPath)
-            //call until all items are renamed
-            if !strongself.selectedCellIndexPaths.isEmpty {
-                strongself.editToolbarDidRename(editToolbar)
+        editActions.rename({
+            [weak self] state in
+            if state == .success || state == .fail {
+                self?.resetSelections(resetUI: true)
+                self?.delegate?.editControllerDidFinishEditing(editController: self)
             }
         })
     }
 }
 
-// MARK: - UICollectionViewDataSource
+// MARK: - UICollectionViewDelegate
+
+extension EditController: UICollectionViewDelegate {
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        selectedCellIndexPaths.insert(indexPath)
+        if !selectedCellIndexPaths.isEmpty {
+            delegate?.editControllerDidSelectMultipleItem(editContrller: self)
+        }
+        // Isolate selectionViewOverlay changes inside EditController
+        if let cell = collectionView.cellForItem(at: indexPath) as? BaseCollectionViewCell {
+            cell.selectionViewOverlay?.isHidden = false
+            cell.isSelected = true
+        }
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didDeselectItemAt indexPath: IndexPath) {
+        selectedCellIndexPaths.remove(indexPath)
+        if selectedCellIndexPaths.isEmpty {
+            delegate?.editControllerDidDeSelectMultipleItem(editContrller: self)
+        }
+        if let cell = collectionView.cellForItem(at: indexPath) as? BaseCollectionViewCell {
+            cell.selectionViewOverlay?.isHidden = true
+            cell.isSelected = false
+        }
+    }
+}
+
+// MARK: - UICollectdiionViewDataSource
 
 extension EditController: UICollectionViewDataSource {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -283,15 +285,31 @@ extension EditController: UICollectionViewDataSource {
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        guard let editCell = (model as? EditableMLModel)?.editCellType() else {
-            assertionFailure("The category either doesn't implement EditableMLModel or doesn't have a editcellType defined")
-            return UICollectionViewCell()
-        }
-        if let cell = collectionView.dequeueReusableCell(withReuseIdentifier: editCell.defaultReuseIdentifier,
-                                                         for: indexPath) as? MediaEditCell {
-            cell.media = model.anyfiles[indexPath.row]
-            cell.isChecked = selectedCellIndexPaths.contains(indexPath)
+        if let cell = collectionView.dequeueReusableCell(withReuseIdentifier: model.cellType.defaultReuseIdentifier,
+                                                         for: indexPath) as? BaseCollectionViewCell {
+            cell.isSelected = selectedCellIndexPaths.contains(indexPath)
             cell.isAccessibilityElement = true
+            cell.checkImageView?.isHidden = false
+
+            if let cell = cell as? MediaCollectionViewCell {
+                cell.disableScrollView()
+                if let collectionModel = model as? CollectionModel, collectionModel.mediaCollection is VLCMLPlaylist {
+                    cell.dragIndicatorImageView.isHidden = false
+                } else if cell.media is VLCMLMediaGroup || cell.media is VLCMLPlaylist {
+                    cell.dragIndicatorImageView.isHidden = true
+                }
+                cell.isEditing = true
+            }
+            if cell.media is VLCMLMedia || cell.media is VLCMLMediaGroup {
+                cell.secondDescriptionLabelView?.isHidden = false
+                cell.descriptionSeparatorLabel?.isHidden = false
+            }
+
+            if cell.isSelected {
+                cell.selectionViewOverlay?.isHidden = false
+            }
+
+            cell.media = model.anyfiles[indexPath.row]
             return cell
         } else {
             assertionFailure("We couldn't dequeue a reusable cell, the cell might not be registered or is not a MediaEditCell")
@@ -315,63 +333,39 @@ extension EditController: UICollectionViewDataSource {
     }
 }
 
-// MARK: - UICollectionViewDelegate
-
-extension EditController: UICollectionViewDelegate {
-    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        if let cell = collectionView.cellForItem(at: indexPath) as? MediaEditCell {
-            cell.isChecked = !cell.isChecked
-            if cell.isChecked {
-                // cell selected, saving indexPath
-                selectedCellIndexPaths.insert(indexPath)
-            } else {
-                selectedCellIndexPaths.remove(indexPath)
-            }
-        }
-    }
-}
-
 // MARK: - UICollectionViewDelegateFlowLayout
 
 extension EditController: UICollectionViewDelegateFlowLayout {
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        let contentInset = collectionView.contentInset
-        // FIXME: 5 should be cell padding, but not usable maybe static?
-        let insetToRemove = contentInset.left + contentInset.right + (5 * 2)
-        var width = collectionView.frame.width
+    func collectionView(_ collectionView: UICollectionView,
+                        layout collectionViewLayout: UICollectionViewLayout,
+                        sizeForItemAt indexPath: IndexPath) -> CGSize {
+        var toWidth = collectionView.frame.size.width
         if #available(iOS 11.0, *) {
-            width = collectionView.safeAreaLayoutGuide.layoutFrame.width
+            toWidth = collectionView.safeAreaLayoutGuide.layoutFrame.width
         }
-        return MediaEditCell.cellSizeForWidth(width - insetToRemove)
+
+        return model.cellType.cellSizeForWidth(toWidth)
+    }
+
+    func collectionView(_ collectionView: UICollectionView,
+                        layout collectionViewLayout: UICollectionViewLayout,
+                        insetForSectionAt section: Int) -> UIEdgeInsets {
+        return UIEdgeInsets(top: model.cellType.edgePadding,
+                            left: model.cellType.edgePadding,
+                            bottom: model.cellType.edgePadding,
+                            right: model.cellType.edgePadding)
+    }
+
+    func collectionView(_ collectionView: UICollectionView,
+                        layout collectionViewLayout: UICollectionViewLayout,
+                        minimumLineSpacingForSectionAt section: Int) -> CGFloat {
+        return model.cellType.edgePadding
+    }
+
+    func collectionView(_ collectionView: UICollectionView,
+                        layout collectionViewLayout: UICollectionViewLayout,
+                        minimumInteritemSpacingForSectionAt section: Int) -> CGFloat {
+        return model.cellType.interItemPadding
     }
 }
 
-extension EditController: AddToPlaylistViewControllerDelegate {
-    func addToPlaylistViewController(_ addToPlaylistViewController: AddToPlaylistViewController,
-                                     didSelectPlaylist playlist: VLCMLPlaylist) {
-        let files = model.anyfiles
-        var mediaObjects = [VLCMLObject]()
-
-        for index in selectedCellIndexPaths where index.row < files.count {
-            if let mediaCollection = files[index.row] as? MediaCollectionModel {
-                mediaObjects += mediaCollection.files() ?? []
-            } else {
-                mediaObjects.append(files[index.row])
-            }
-        }
-
-        for media in mediaObjects {
-            if !playlist.appendMedia(withIdentifier: media.identifier()) {
-                assertionFailure("EditController: AddToPlaylistViewControllerDelegate: Failed to add item.")
-            }
-        }
-        resetSelections()
-        addToPlaylistViewController.dismiss(animated: true, completion: nil)
-    }
-
-    func addToPlaylistViewController(_ addToPlaylistViewController: AddToPlaylistViewController,
-                                     newPlaylistWithName name: String) {
-        createPlaylist(name)
-        addToPlaylistViewController.dismiss(animated: true, completion: nil)
-    }
-}

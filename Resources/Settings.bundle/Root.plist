@@ -11,42 +11,6 @@
 			<string>SETTINGS_GENERIC_TITLE</string>
 		</dict>
 		<dict>
-			<key>DefaultValue</key>
-			<true/>
-			<key>Key</key>
-			<string>MLDecrapifyTitles</string>
-			<key>Title</key>
-			<string>SETTINGS_DECRAPIFY</string>
-			<key>Type</key>
-			<string>PSToggleSwitchSpecifier</string>
-		</dict>
-		<dict>
-			<key>Type</key>
-			<string>PSMultiValueSpecifier</string>
-			<key>Title</key>
-			<string>SETTINGS_NETWORK_CACHING_TITLE</string>
-			<key>Key</key>
-			<string>network-caching</string>
-			<key>DefaultValue</key>
-			<integer>999</integer>
-			<key>Titles</key>
-			<array>
-				<string>SETTINGS_NETWORK_CACHING_LEVEL_LOWEST</string>
-				<string>SETTINGS_NETWORK_CACHING_LEVEL_LOW</string>
-				<string>SETTINGS_NETWORK_CACHING_LEVEL_NORMAL</string>
-				<string>SETTINGS_NETWORK_CACHING_LEVEL_HIGH</string>
-				<string>SETTINGS_NETWORK_CACHING_LEVEL_HIGHEST</string>
-			</array>
-			<key>Values</key>
-			<array>
-				<integer>333</integer>
-				<integer>666</integer>
-				<integer>999</integer>
-				<integer>1667</integer>
-				<integer>3333</integer>
-			</array>
-		</dict>
-		<dict>
 			<key>Type</key>
 			<string>PSMultiValueSpecifier</string>
 			<key>Title</key>
@@ -63,7 +27,11 @@
 				<string>1.00x</string>
 				<string>1.25x</string>
 				<string>1.50x</string>
+				<string>1.75x</string>
 				<string>2.00x</string>
+				<string>2.50x</string>
+				<string>3.00x</string>
+				<string>3.50x</string>
 				<string>4.00x</string>
 			</array>
 			<key>Values</key>
@@ -74,7 +42,11 @@
 				<real>1</real>
 				<real>1.25</real>
 				<real>1.5</real>
+				<real>1.75</real>
 				<real>2</real>
+				<real>2.50</real>
+				<real>3.00</real>
+				<real>3.5</real>
 				<real>4</real>
 			</array>
 		</dict>
@@ -139,6 +111,26 @@
 			<string>AutomaticallyPlayNextItem</string>
 			<key>Title</key>
 			<string>SETTINGS_NETWORK_PLAY_ALL</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<false/>
+			<key>Key</key>
+			<string>EnableMediaCellTextScrolling</string>
+			<key>Title</key>
+			<string>SETTINGS_ENABLE_MEDIA_CELL_TEXT_SCROLLING</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<true/>
+			<key>Key</key>
+			<string>PlayerShouldRememberState</string>
+			<key>Title</key>
+			<string>SETTINGS_REMEMBER_PLAYER_STATE</string>
 			<key>Type</key>
 			<string>PSToggleSwitchSpecifier</string>
 		</dict>
@@ -588,7 +580,119 @@
 			<key>Type</key>
 			<string>PSGroupSpecifier</string>
 			<key>Title</key>
-			<string>SETTINGS_FILE_SYNC</string>
+			<string>SETTINGS_CASTING</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<string>NO</string>
+			<key>Key</key>
+			<string>sout-chromecast-audio-passthrough</string>
+			<key>Title</key>
+			<string>SETTINGS_PTCASTING</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Title</key>
+			<string>SETTINGS_CASTING_CONVERSION_QUALITY</string>
+			<key>Key</key>
+			<string>sout-chromecast-conversion-quality</string>
+			<key>DefaultValue</key>
+			<integer>2</integer>
+			<key>Titles</key>
+			<array>
+				<string>SETTINGS_HIGH</string>
+				<string>SETTINGS_MEDIUM</string>
+				<string>SETTINGS_LOW</string>
+				<string>SETTINGS_LOWEST</string>
+			</array>
+			<key>Values</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+			<key>Title</key>
+			<string>SETTINGS_MEDIA_LIBRARY</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<true/>
+			<key>Key</key>
+			<string>MLDecrapifyTitles</string>
+			<key>Title</key>
+			<string>SETTINGS_DECRAPIFY</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<false/>
+			<key>Key</key>
+			<string>MLDisableGrouping</string>
+			<key>Title</key>
+			<string>SETTINGS_DISABLE_GROUPING</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<true/>
+			<key>Key</key>
+			<string>ShowThumbnails</string>
+			<key>Title</key>
+			<string>SETTINGS_SHOW_THUMBNAILS</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<true/>
+			<key>Key</key>
+			<string>ShowArtworks</string>
+			<key>Title</key>
+			<string>SETTINGS_SHOW_ARTWORKS</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+			<key>Title</key>
+			<string>SETTINGS_NETWORK</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Title</key>
+			<string>SETTINGS_NETWORK_CACHING_TITLE</string>
+			<key>Key</key>
+			<string>network-caching</string>
+			<key>DefaultValue</key>
+			<integer>999</integer>
+			<key>Titles</key>
+			<array>
+				<string>SETTINGS_NETWORK_CACHING_LEVEL_LOWEST</string>
+				<string>SETTINGS_NETWORK_CACHING_LEVEL_LOW</string>
+				<string>SETTINGS_NETWORK_CACHING_LEVEL_NORMAL</string>
+				<string>SETTINGS_NETWORK_CACHING_LEVEL_HIGH</string>
+				<string>SETTINGS_NETWORK_CACHING_LEVEL_HIGHEST</string>
+			</array>
+			<key>Values</key>
+			<array>
+				<integer>333</integer>
+				<integer>666</integer>
+				<integer>999</integer>
+				<integer>1667</integer>
+				<integer>3333</integer>
+			</array>
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
@@ -601,60 +705,48 @@
 			<string>PSToggleSwitchSpecifier</string>
 		</dict>
 		<dict>
-			<key>Type</key>
-			<string>PSMultiValueSpecifier</string>
-			<key>Titles</key>
-			<array>
-				<string>Universal (UTF-8)</string>
-				<string>Universal (UTF-16)</string>
-				<string>Universal (big endian UTF-16)</string>
-				<string>Universal (little endian UTF-16)</string>
-				<string>Universal (UTF-32)</string>
-				<string>Universal (big endian UTF-32)</string>
-				<string>Universal (little endian UTF-32)</string>
-				<string>Western (Mac OS Roman)</string>
-				<string>Western (ISO Latin 1)</string>
-				<string>Western (Windows Latin 1)</string>
-				<string>Western (ASCII)</string>
-				<string>Western (NextStep)</string>
-				<string>Japanese (EUC)</string>
-				<string>Japanese (Shift JIS)</string>
-				<string>Non-lossy ASCII</string>
-				<string>Central European (ISO Latin 2)</string>
-				<string>Central European (Windows Latin 2)</string>
-				<string>Cyrillic (Windows)</string>
-				<string>Turkish (CP1254)</string>
-				<string>Greek (CP1253)</string>
-			</array>
-			<key>Values</key>
-			<array>
-				<integer>4</integer>
-				<integer>10</integer>
-				<integer>2415919360</integer>
-				<integer>2483028224</integer>
-				<integer>2348810496</integer>
-				<integer>2550137088</integer>
-				<integer>2617245952</integer>
-				<integer>30</integer>
-				<string>5</string>
-				<string>12</string>
-				<string>1</string>
-				<string>2</string>
-				<string>3</string>
-				<string>8</string>
-				<string>7</string>
-				<string>9</string>
-				<string>15</string>
-				<string>11</string>
-				<string>14</string>
-				<string>13</string>
-			</array>
-			<key>Title</key>
-			<string>SETTINGS_FTP_TEXT_ENCODING</string>
-			<key>Key</key>
-			<string>ftp-text-encoding</string>
 			<key>DefaultValue</key>
-			<integer>5</integer>
+			<false/>
+			<key>Key</key>
+			<string>rtsp-tcp</string>
+			<key>Title</key>
+			<string>SETTINGS_RTSP_TCP</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<true/>
+			<key>Key</key>
+			<string>smb-force-v1</string>
+			<key>Title</key>
+			<string>SETTINGS_FORCE_SMBV1</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSTextFieldSpecifier</string>
+			<key>Title</key>
+			<string>SETTINGS_NETWORK_SATIP_CUSTOM_CHANNEL_LIST</string>
+			<key>Key</key>
+			<string>satip-channellist-url</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+			<key>Title</key>
+			<string>SETTINGS_LAB</string>
+		</dict>
+		<dict>
+			<key>DefaultValue</key>
+			<true/>
+			<key>Key</key>
+			<string>kVLCSaveDebugLogs</string>
+			<key>Title</key>
+			<string>SETTINGS_DEBUG_LOG</string>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
 		</dict>
 	</array>
 	<key>StringsTable</key>

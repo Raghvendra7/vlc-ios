@@ -14,6 +14,8 @@
 #import "VLCNetworkListViewController.h"
 #import "VLCNetworkListCell.h"
 
+#import "VLC-Swift.h"
+
 NSString *VLCNetworkListCellIdentifier = @"VLCNetworkListCellIdentifier";
 
 @interface VLCNetworkListViewController () <UITableViewDataSource, UITableViewDelegate, UISearchBarDelegate, UISearchControllerDelegate, UISearchResultsUpdating>
@@ -27,18 +29,14 @@ NSString *VLCNetworkListCellIdentifier = @"VLCNetworkListCellIdentifier";
 
 @implementation VLCNetworkListViewController
 
-- (void)dealloc
-{
-}
-
 - (void)loadView
 {
     _tableView = [[UITableView alloc] initWithFrame:[UIScreen mainScreen].bounds style:UITableViewStylePlain];
-    _tableView.backgroundColor = [UIColor VLCDarkBackgroundColor];
+    _tableView.backgroundColor = PresentationTheme.current.colors.background;
     CGRect frame = _tableView.bounds;
     frame.origin.y = -frame.size.height;
     UIView *topView = [[UIView alloc] initWithFrame:frame];
-    topView.backgroundColor = [UIColor VLCDarkBackgroundColor];
+    topView.backgroundColor = PresentationTheme.current.colors.background;
     [_tableView addSubview:topView];
     _tableView.delegate = self;
     _tableView.dataSource = self;
@@ -50,7 +48,7 @@ NSString *VLCNetworkListCellIdentifier = @"VLCNetworkListCellIdentifier";
 
     _activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhiteLarge];
     _activityIndicator.center = _tableView.center;
-    _activityIndicator.color = [UIColor VLCOrangeTintColor];
+    _activityIndicator.color = PresentationTheme.current.colors.orangeUI;
     _activityIndicator.autoresizingMask = UIViewAutoresizingFlexibleBottomMargin | UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleTopMargin;
     _activityIndicator.hidesWhenStopped = YES;
     [_activityIndicator startAnimating];
@@ -61,8 +59,8 @@ NSString *VLCNetworkListCellIdentifier = @"VLCNetworkListCellIdentifier";
 {
     [super viewDidLoad];
 
-    self.tableView.separatorColor = [UIColor VLCDarkBackgroundColor];
-    self.view.backgroundColor = [UIColor VLCDarkBackgroundColor];
+    self.tableView.separatorColor = PresentationTheme.current.colors.separatorColor;
+    self.view.backgroundColor = PresentationTheme.current.colors.background;
 
     UINavigationBar *navBar = self.navigationController.navigationBar;
     _searchController = [[UISearchController alloc] initWithSearchResultsController:nil];
@@ -110,11 +108,6 @@ NSString *VLCNetworkListCellIdentifier = @"VLCNetworkListCellIdentifier";
     }
 }
 
-- (void)viewDidAppear:(BOOL)animated
-{
-    [super viewDidAppear:animated];
-}
-
 - (void)viewWillDisappear:(BOOL)animated
 {
     [super viewWillDisappear:animated];
@@ -133,6 +126,16 @@ NSString *VLCNetworkListCellIdentifier = @"VLCNetworkListCellIdentifier";
 - (IBAction)playAllAction:(id)sender
 {
     // to be implemented by subclass
+}
+
+- (void)startActivityIndicator
+{
+    [_activityIndicator startAnimating];
+}
+
+- (void)stopActivityIndicator
+{
+    [_activityIndicator stopAnimating];
 }
 
 #pragma mark - Table view data source
@@ -156,9 +159,6 @@ NSString *VLCNetworkListCellIdentifier = @"VLCNetworkListCellIdentifier";
 
 - (void)tableView:(UITableView *)tableView willDisplayCell:(VLCNetworkListCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath
 {
-    UIColor *color = (indexPath.row % 2 == 0)? [UIColor blackColor]: [UIColor VLCDarkBackgroundColor];
-    cell.backgroundColor = cell.titleLabel.backgroundColor = cell.folderTitleLabel.backgroundColor = cell.subtitleLabel.backgroundColor =  color;
-
     if ([indexPath row] == ((NSIndexPath *)[[tableView indexPathsForVisibleRows] lastObject]).row)
         [_activityIndicator stopAnimating];
 }
@@ -172,7 +172,7 @@ NSString *VLCNetworkListCellIdentifier = @"VLCNetworkListCellIdentifier";
     else
         _tableView.rowHeight = 68.0f;
 
-    _tableView.backgroundColor = [UIColor blackColor];
+    _tableView.backgroundColor = PresentationTheme.current.colors.background;
 }
 
 #pragma mark - Search Research Updater

@@ -2,20 +2,23 @@
  * VLCNetworkServerBrowserVLCMedia.m
  * VLC for iOS
  *****************************************************************************
- * Copyright (c) 2015 VideoLAN. All rights reserved.
+ * Copyright (c) 2015, 2020 VideoLAN. All rights reserved.
  * $Id$
  *
  * Authors: Tobias Conradi <videolan # tobias-conradi.de>
+ *          Felix Paul Kühne <fkuehne # videolan.org>
  *
  * Refer to the COPYING file of the official project for license.
  *****************************************************************************/
 
 #import "VLCNetworkServerBrowserVLCMedia.h"
 #import "NSString+SupportedMedia.h"
+#import "VLC-Swift.h"
 
 @interface VLCNetworkServerBrowserVLCMedia () <VLCMediaListDelegate, VLCMediaDelegate>
 {
-    BOOL _needsNotifyDelegate;
+    VLCDialogProvider *_dialogProvider;
+    VLCCustomDialogRendererHandler *_customDialogHandler;
 }
 
 @property (nonatomic) VLCMedia *rootMedia;
@@ -36,21 +39,39 @@
         _mediaList = [[VLCMediaList alloc] init];
         _rootMedia = media;
         _rootMedia.delegate = self;
-        [media parseWithOptions:VLCMediaParseNetwork];
+        // Set timeout to 0 in order to avoid getting interrupted in dialogs for timeout reasons
+        [_rootMedia parseWithOptions:VLCMediaParseNetwork|VLCMediaDoInteract timeout:0];
         _mediaListUnfiltered = [_rootMedia subitems];
         _mediaListUnfiltered.delegate = self;
         NSMutableDictionary *mediaOptionsNoFilter = [mediaOptions mutableCopy];
         [mediaOptionsNoFilter setObject:@" " forKey:@":ignore-filetypes"];
         _mediaOptions = [mediaOptionsNoFilter copy];
         [self _addMediaListRootItemsToList];
+
+        _dialogProvider = [[VLCDialogProvider alloc] initWithLibrary:[VLCLibrary sharedLibrary] customUI:YES];
+        _customDialogHandler = [[VLCCustomDialogRendererHandler alloc]
+                                initWithDialogProvider:_dialogProvider];
+
+        __weak typeof(self) weakSelf = self;
+        _customDialogHandler.completionHandler = ^(VLCCustomDialogRendererHandlerCompletionType status)
+        {
+            [weakSelf customDialogCompletionHandlerWithStatus:status];
+        };
+        _dialogProvider.customRenderer = _customDialogHandler;
     }
     return self;
 }
 
-- (BOOL)shouldFilterMedia:(VLCMedia *)media
+- (void)dealloc
 {
-    NSString *absoluteString = media.url.absoluteString;
-    return ![absoluteString isSupportedAudioMediaFormat] && ![absoluteString isSupportedMediaFormat] && ![absoluteString isSupportedPlaylistFormat] && media.mediaType != VLCMediaTypeDirectory;
+    [_rootMedia parseStop];
+}
+
+- (void)customDialogCompletionHandlerWithStatus:(VLCCustomDialogRendererHandlerCompletionType)status
+{
+    if (status == VLCCustomDialogRendererHandlerCompletionTypeStop) {
+        [_rootMedia parseStop];
+    }
 }
 
 - (void)_addMediaListRootItemsToList
@@ -60,11 +81,9 @@
     NSUInteger count = rootItems.count;
     for (NSUInteger i = 0; i < count; i++) {
         VLCMedia *media = [rootItems mediaAtIndex:i];
-        if (![self shouldFilterMedia:media]) {
-            NSInteger mediaIndex = self.mutableItems.count;
-            [self.mediaList insertMedia:media atIndex:mediaIndex];
-            [self.mutableItems insertObject:[[VLCNetworkServerBrowserItemVLCMedia alloc] initWithMedia:media options:self.mediaOptions] atIndex:mediaIndex];
-        }
+        NSInteger mediaIndex = self.mutableItems.count;
+        [self.mediaList insertMedia:media atIndex:mediaIndex];
+        [self.mutableItems insertObject:[[VLCNetworkServerBrowserItemVLCMedia alloc] initWithMedia:media options:self.mediaOptions] atIndex:mediaIndex];
     }
     [rootItems unlock];
 }
@@ -89,11 +108,9 @@
 - (void)mediaList:(VLCMediaList *)aMediaList mediaAdded:(VLCMedia *)media atIndex:(NSUInteger)index
 {
     [media addOptions:self.mediaOptions];
-    if (![self shouldFilterMedia:media]) {
-        NSInteger mediaIndex = self.mutableItems.count;
-        [self.mediaList insertMedia:media atIndex:mediaIndex];
-        [self.mutableItems insertObject:[[VLCNetworkServerBrowserItemVLCMedia alloc] initWithMedia:media options:self.mediaOptions] atIndex:mediaIndex];
-    }
+    NSInteger mediaIndex = self.mutableItems.count;
+    [self.mediaList insertMedia:media atIndex:mediaIndex];
+    [self.mutableItems insertObject:[[VLCNetworkServerBrowserItemVLCMedia alloc] initWithMedia:media options:self.mediaOptions] atIndex:mediaIndex];
 
     [self.delegate networkServerBrowserDidUpdate:self];
 }
@@ -111,26 +128,17 @@
 
 - (void)mediaDidFinishParsing:(VLCMedia *)aMedia
 {
-    [self setNeedsNotifyDelegateForDidUpdate];
-}
-- (void)mediaMetaDataDidChange:(VLCMedia *)aMedia
-{
-    [self setNeedsNotifyDelegateForDidUpdate];
-}
-
-- (void)setNeedsNotifyDelegateForDidUpdate
-{
-    if (_needsNotifyDelegate) {
-        return;
-    }
-    _needsNotifyDelegate = YES;
-
-    double amountOfSeconds = 0.1;
-    dispatch_time_t delayTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(amountOfSeconds * NSEC_PER_SEC));
-    dispatch_after(delayTime, dispatch_get_main_queue(), ^{
-        self->_needsNotifyDelegate = NO;
+    if ([aMedia parsedStatus] != VLCMediaParsedStatusDone) {
+        if ([self.delegate respondsToSelector:@selector(networkServerBrowserShouldPopView:)]) {
+            [self.delegate networkServerBrowserShouldPopView:self];
+        }
+    } else if (self.mediaList.count != 0) {
         [self.delegate networkServerBrowserDidUpdate:self];
-    });
+    } else {
+        if ([self.delegate respondsToSelector:@selector(networkServerBrowserEndParsing:)]) {
+            [self.delegate networkServerBrowserEndParsing:self];
+        }
+    }
 }
 
 @end
@@ -158,13 +166,26 @@
         _name = title;
         _URL = media.url;
         _mediaOptions = [mediaOptions copy];
-        _downloadable = NO;
     }
     return self;
 }
 
 - (id<VLCNetworkServerBrowser>)containerBrowser {
     return [[VLCNetworkServerBrowserVLCMedia alloc] initWithMedia:self.media options:self.mediaOptions];
+}
+
+- (BOOL)isDownloadable
+{
+    return _media.mediaType == VLCMediaTypeFile;
+}
+
+- (NSURL *)thumbnailURL
+{
+    NSString *artworkUrlString = [_media metadataForKey:VLCMetaInformationArtworkURL];
+    if (artworkUrlString) {
+        return [NSURL URLWithString:artworkUrlString];
+    }
+    return nil;
 }
 
 @end

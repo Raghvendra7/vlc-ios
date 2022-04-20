@@ -9,50 +9,77 @@
  * Refer to the COPYING file of the official project for license.
  *****************************************************************************/
 
-class ArtistModel: MLBaseModel {
+class ArtistModel: AudioCollectionModel {
     typealias MLType = VLCMLArtist
 
-    var sortModel = SortModel([.alpha])
+    var sortModel = SortModel([.alpha, .lastPlaybackDate, .nbAlbum])
 
-    var updateView: (() -> Void)?
+    var observable = Observable<MediaLibraryBaseModelObserver>()
 
     var files = [VLCMLArtist]()
 
-    var cellType: BaseCollectionViewCell.Type { return MediaCollectionViewCell.self }
+    var cellType: BaseCollectionViewCell.Type {
+        return UserDefaults.standard.bool(forKey: "\(kVLCAudioLibraryGridLayout)\(name)") ? MediaGridCollectionCell.self : MediaCollectionViewCell.self
+    }
 
     var medialibrary: MediaLibraryService
 
+    var name: String = "ARTISTS"
+
     var indicatorName: String = NSLocalizedString("ARTISTS", comment: "")
+
+    var hideFeatArtists: Bool {
+        return UserDefaults.standard.bool(forKey: "\(kVLCAudioLibraryHideFeatArtists)")
+    }
 
     required init(medialibrary: MediaLibraryService) {
         self.medialibrary = medialibrary
-        medialibrary.addObserver(self)
-        files = medialibrary.artists()
+        medialibrary.observable.addObserver(self)
+        files = hideFeatArtists ? medialibrary.artists(listAll: false) : medialibrary.artists()
     }
 
     func append(_ item: VLCMLArtist) {
         files.append(item)
     }
 
-    func delete(_ items: [VLCMLObject]) {
-        preconditionFailure("ArtistModel: Artists can not be deleted, they disappear when their last title got deleted")
+    private func addNewArtists(_ artists: [VLCMLArtist]) {
+        let newArtists = artists.filter() {
+            for artist in files {
+                if artist.identifier() == $0.identifier() {
+                    return false
+                }
+            }
+            return true
+        }
+
+        for artist in newArtists {
+            if !files.contains(where: { $0.identifier() == artist.identifier() }) {
+                files.append(artist)
+            }
+        }
+    }
+
+    private func filterGeneratedArtists() {
+        for (index, artist) in files.enumerated().reversed() {
+            if artist.identifier() == UnknownArtistID || artist.identifier() == VariousArtistID {
+                if artist.tracksCount() == 0 {
+                    files.remove(at: index)
+                }
+            }
+        }
     }
 }
 
 // MARK: - Sort
 extension ArtistModel {
     func sort(by criteria: VLCMLSortingCriteria, desc: Bool) {
-        files = medialibrary.artists(sortingCriteria: criteria, desc: desc)
+        files = hideFeatArtists ? medialibrary.artists(sortingCriteria: criteria, desc: desc, listAll: false) :
+                                medialibrary.artists(sortingCriteria: criteria, desc: desc, listAll: true)
         sortModel.currentSort = criteria
         sortModel.desc = desc
-        updateView?()
-    }
-}
-
-// MARK: - Edit
-extension ArtistModel: EditableMLModel {
-    func editCellType() -> BaseCollectionViewCell.Type {
-        return MediaEditCell.self
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
     }
 }
 
@@ -68,30 +95,60 @@ extension VLCMLArtist: SearchableMLModel {
 extension ArtistModel: MediaLibraryObserver {
     func medialibrary(_ medialibrary: MediaLibraryService, didAddArtists artists: [VLCMLArtist]) {
         artists.forEach({ append($0) })
-        updateView?()
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
+    }
+
+    func medialibrary(_ medialibrary: MediaLibraryService,
+                      didModifyArtistsWithIds artistsIds: [NSNumber]) {
+
+        let uniqueArtistsIds = Array(Set(artistsIds))
+        var artists = [VLCMLArtist]()
+
+        uniqueArtistsIds.forEach() {
+            guard let safeArtist = medialibrary.medialib.artist(withIdentifier: $0.int64Value)
+                else {
+                    return
+            }
+            artists.append(safeArtist)
+        }
+
+        files = swapModels(with: artists)
+        addNewArtists(artists)
+        filterGeneratedArtists()
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
     }
 
     func medialibrary(_ medialibrary: MediaLibraryService, didDeleteArtistsWithIds artistsIds: [NSNumber]) {
         files.removeAll {
             artistsIds.contains(NSNumber(value: $0.identifier()))
         }
-        updateView?()
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
     }
 
+    func medialibraryDidStartRescan() {
+        files.removeAll()
+    }
 }
 
 extension VLCMLArtist: MediaCollectionModel {
 
     func sortModel() -> SortModel? {
-        return SortModel([.alpha])
+        return SortModel([.alpha, .album, .duration, .releaseDate])
     }
 
-    func files() -> [VLCMLMedia]? {
-        return tracks()
+    func files(with criteria: VLCMLSortingCriteria,
+               desc: Bool = false) -> [VLCMLMedia]? {
+        return tracks(with: criteria, desc: desc)
     }
 
-    func title() -> String? {
-        return name
+    func title() -> String {
+        return artistName()
     }
 }
 
@@ -99,21 +156,6 @@ extension VLCMLArtist {
     func numberOfTracksString() -> String {
         let tracksString = tracks()?.count == 1 ? NSLocalizedString("TRACK", comment: "") : NSLocalizedString("TRACKS", comment: "")
         return String(format: tracksString, tracks()?.count ?? 0)
-    }
-
-    @objc func thumbnail() -> UIImage? {
-        var image = UIImage(contentsOfFile: artworkMRL()?.path ?? "")
-        if image == nil {
-            for track in files() ?? [] where track.isThumbnailGenerated() {
-                image = UIImage(contentsOfFile: track.thumbnail()?.path ?? "")
-                break
-            }
-        }
-        if image == nil {
-            let isDarktheme = PresentationTheme.current == PresentationTheme.darkTheme
-            image = isDarktheme ? UIImage(named: "artist-placeholder-dark") : UIImage(named: "artist-placeholder-white")
-        }
-        return image
     }
 
     func artistName() -> String {

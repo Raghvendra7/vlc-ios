@@ -13,14 +13,32 @@ class ActionSheetSectionHeader: UIView {
 
     static let identifier = "VLCActionSheetSectionHeader"
 
+    public var accessoryViewsDelegate: ActionSheetAccessoryViewsDelegate? {
+        didSet {
+            addAccessoryViews()
+        }
+    }
+
     var cellHeight: CGFloat {
         return 50
     }
 
+    let stackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.axis = .horizontal
+        stackView.distribution = .fill
+        stackView.spacing = 10
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        return stackView
+    }()
+
     let title: UILabel = {
         let title = UILabel()
-        title.font = UIFont.boldSystemFont(ofSize: 17)
-        title.textColor = PresentationTheme.current.colors.cellTextColor
+        let colors = PresentationTheme.current.colors
+        title.font = UIFont.preferredCustomFont(forTextStyle: .headline).bolded
+        title.textColor = colors.cellTextColor
+        title.backgroundColor = colors.background
+        title.setContentHuggingPriority(.required, for: .vertical)
         title.translatesAutoresizingMaskIntoConstraints = false
         return title
     }()
@@ -30,6 +48,19 @@ class ActionSheetSectionHeader: UIView {
         separator.backgroundColor = .lightGray
         separator.translatesAutoresizingMaskIntoConstraints = false
         return separator
+    }()
+
+    let previousButton: UIButton = {
+        let previousButton = UIButton()
+        previousButton.setImage(UIImage(named: "disclosureChevron")?.withRenderingMode(.alwaysTemplate), for: .normal)
+        previousButton.imageView?.transform = CGAffineTransform(rotationAngle: CGFloat(Double.pi))
+        previousButton.tintColor = PresentationTheme.current.colors.orangeUI
+        previousButton.setContentHuggingPriority(.required, for: .horizontal)
+        previousButton.setContentHuggingPriority(.required, for: .vertical)
+        previousButton.setContentCompressionResistancePriority(.required, for: .horizontal)
+        previousButton.translatesAutoresizingMaskIntoConstraints = false
+        previousButton.isHidden = true
+        return previousButton
     }()
 
     lazy var guide: LayoutAnchorContainer = {
@@ -43,14 +74,48 @@ class ActionSheetSectionHeader: UIView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        setupTitle()
+        setupStackView()
         setupSeparator()
     }
 
     required init?(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)
-        setupTitle()
+        setupStackView()
         setupSeparator()
+    }
+
+    fileprivate func setupStackView() {
+        stackView.addArrangedSubview(previousButton)
+        stackView.addArrangedSubview(title)
+        addAccessoryViews()
+
+        addSubview(stackView)
+        NSLayoutConstraint.activate([
+            stackView.leadingAnchor.constraint(equalTo: guide.leadingAnchor, constant: 20),
+            stackView.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -20),
+            stackView.topAnchor.constraint(equalTo: topAnchor),
+            stackView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            stackView.centerYAnchor.constraint(equalTo: centerYAnchor)
+        ])
+    }
+
+    fileprivate func addAccessoryViews() {
+        if let accessoryViews = accessoryViewsDelegate?.actionSheetAccessoryViews(self) {
+            for accessoryView in accessoryViews {
+                stackView.addArrangedSubview(accessoryView)
+            }
+        }
+    }
+
+    func updateAccessoryViews() {
+        while stackView.arrangedSubviews.count > 2 {
+            if let subview = stackView.arrangedSubviews.last {
+                stackView.removeArrangedSubview(subview)
+                subview.removeFromSuperview()
+            }
+        }
+        addAccessoryViews()
+        stackView.layoutSubviews()
     }
 
     fileprivate func setupSeparator() {
@@ -67,7 +132,10 @@ class ActionSheetSectionHeader: UIView {
         addSubview(title)
         NSLayoutConstraint.activate([
             title.leadingAnchor.constraint(equalTo: guide.leadingAnchor, constant: 20),
-            title.topAnchor.constraint(equalTo: topAnchor, constant: 20)
         ])
     }
+}
+
+protocol ActionSheetAccessoryViewsDelegate {
+    func actionSheetAccessoryViews(_ actionSheet: ActionSheetSectionHeader) -> [UIView]
 }

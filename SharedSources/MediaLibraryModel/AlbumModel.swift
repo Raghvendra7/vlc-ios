@@ -9,50 +9,70 @@
  * Refer to the COPYING file of the official project for license.
  *****************************************************************************/
 
-class AlbumModel: MLBaseModel {
+class AlbumModel: AudioCollectionModel {
     typealias MLType = VLCMLAlbum
 
-    var sortModel = SortModel([.alpha, .duration, .releaseDate, .trackNumber])
+    var sortModel = SortModel([.alpha, .duration, .releaseDate, .trackNumber, .insertionDate])
 
-    var updateView: (() -> Void)?
+    var observable = Observable<MediaLibraryBaseModelObserver>()
 
     var files = [VLCMLAlbum]()
 
-    var cellType: BaseCollectionViewCell.Type { return MediaCollectionViewCell.self }
+    private var artist: VLCMLArtist? = nil
+
+    var cellType: BaseCollectionViewCell.Type {
+        return UserDefaults.standard.bool(forKey: "\(kVLCAudioLibraryGridLayout)\(name)") ? MediaGridCollectionCell.self : MediaCollectionViewCell.self
+    }
 
     var medialibrary: MediaLibraryService
+
+    var name: String = "ALBUMS"
 
     var indicatorName: String = NSLocalizedString("ALBUMS", comment: "")
 
     required init(medialibrary: MediaLibraryService) {
         self.medialibrary = medialibrary
-        medialibrary.addObserver(self)
+        medialibrary.observable.addObserver(self)
         files = medialibrary.albums()
+    }
+
+    init(medialibrary: MediaLibraryService, artist: VLCMLArtist) {
+        self.medialibrary = medialibrary
+        self.artist = artist
+        if let albums = artist.albums() {
+            files = albums
+        } else {
+            files = []
+        }
+        medialibrary.observable.addObserver(self)
     }
 
     func append(_ item: VLCMLAlbum) {
         files.append(item)
-    }
-
-    func delete(_ items: [VLCMLObject]) {
-        preconditionFailure("AlbumModel: Albums can not be deleted, they disappear when their last title got deleted")
     }
 }
 
 // MARK: - Sort
 extension AlbumModel {
     func sort(by criteria: VLCMLSortingCriteria, desc: Bool) {
-        files = medialibrary.albums(sortingCriteria: criteria, desc: desc)
+        if artist != nil {
+            var albums: [VLCMLAlbum] = []
+            medialibrary.albums(sortingCriteria: criteria, desc: desc).forEach() {
+                if let albumArtist = $0.albumArtist?.artistName(),
+                   let artist = self.artist?.artistName(),
+                   albumArtist == artist {
+                    albums.append($0)
+                }
+            }
+            files = albums
+        } else {
+            files = medialibrary.albums(sortingCriteria: criteria, desc: desc)
+        }
         sortModel.currentSort = criteria
         sortModel.desc = desc
-        updateView?()
-    }
-}
-
-// MARK: - Edit
-extension AlbumModel: EditableMLModel {
-    func editCellType() -> BaseCollectionViewCell.Type {
-        return MediaEditCell.self
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
     }
 }
 
@@ -69,43 +89,60 @@ extension VLCMLAlbum: SearchableMLModel {
     }
 }
 
-extension VLCMLAlbumTrack: SearchableMLModel {
-    func contains(_ searchString: String) -> Bool {
-        var matches = false
-        matches = matches || artist?.contains(searchString) ?? false
-        matches = matches || genre?.contains(searchString) ?? false
-        matches = matches || album?.contains(searchString) ?? false
-        return matches
-    }
-}
-
 // MARK: - MediaLibraryObserver
 
 extension AlbumModel: MediaLibraryObserver {
     func medialibrary(_ medialibrary: MediaLibraryService, didAddAlbums albums: [VLCMLAlbum]) {
         albums.forEach({ append($0) })
-        updateView?()
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
+    }
+
+    func medialibrary(_ medialibrary: MediaLibraryService,
+                      didModifyAlbumsWithIds albumsIds: [NSNumber]) {
+        var albums = [VLCMLAlbum]()
+
+        albumsIds.forEach() {
+            guard let safeAlbum = medialibrary.medialib.album(withIdentifier: $0.int64Value)
+                else {
+                    return
+            }
+            albums.append(safeAlbum)
+        }
+
+        files = swapModels(with: albums)
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
     }
 
     func medialibrary(_ medialibrary: MediaLibraryService, didDeleteAlbumsWithIds albumsIds: [NSNumber]) {
         files.removeAll {
             albumsIds.contains(NSNumber(value: $0.identifier()))
         }
-        updateView?()
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
+    }
+
+    func medialibraryDidStartRescan() {
+        files.removeAll()
     }
 }
 
 extension VLCMLAlbum: MediaCollectionModel {
     func sortModel() -> SortModel? {
-        return nil
+        return SortModel([.alpha, .album, .duration, .releaseDate])
     }
 
-    func files() -> [VLCMLMedia]? {
-        return tracks
+    func files(with criteria: VLCMLSortingCriteria,
+               desc: Bool = false) -> [VLCMLMedia]? {
+        return tracks(with: criteria, desc: desc)
     }
 
-    func title() -> String? {
-        return title
+    func title() -> String {
+        return albumArtistName()
     }
 }
 
@@ -115,21 +152,6 @@ extension VLCMLAlbum {
         let trackCount = numberOfTracks()
         let tracksString = trackCount > 1 ? NSLocalizedString("TRACKS", comment: "") : NSLocalizedString("TRACK", comment: "")
         return String(format: tracksString, trackCount)
-    }
-
-    @objc func thumbnail() -> UIImage? {
-        var image = UIImage(contentsOfFile: artworkMRL()?.path ?? "")
-        if image == nil {
-            for track in files() ?? [] where track.isThumbnailGenerated() {
-                image = UIImage(contentsOfFile: track.thumbnail()?.path ?? "")
-                break
-            }
-        }
-        if image == nil {
-            let isDarktheme = PresentationTheme.current == PresentationTheme.darkTheme
-            image = isDarktheme ? UIImage(named: "album-placeholder-dark") : UIImage(named: "album-placeholder-white")
-        }
-        return image
     }
 
     func albumName() -> String {
@@ -148,14 +170,5 @@ extension VLCMLAlbum {
             return albumName() + " " + albumArtistName() + " " + numberOfTracksString()
         }
         return albumName() + " " + albumArtistName()
-    }
-}
-
-extension VLCMLAlbumTrack {
-    func albumArtistName() -> String {
-        guard let artist = artist else {
-            return NSLocalizedString("UNKNOWN_ARTIST", comment: "")
-        }
-        return artist.artistName()
     }
 }

@@ -1,9 +1,10 @@
 /*****************************************************************************
  * MediaPlayerActionSheet.swift
  *
- * Copyright © 2019 VLC authors and VideoLAN
+ * Copyright © 2019-2022 VLC authors and VideoLAN
  *
  * Authors: Robert Gordon <robwaynegordon@gmail.com>
+ *          Maxime Chapelet <umxprime # videolabs.io>
  *
  *
  * Refer to the COPYING file of the official project for license.
@@ -12,9 +13,12 @@
 enum MediaPlayerActionSheetCellIdentifier: String, CustomStringConvertible, CaseIterable {
     case filter
     case playback
-    case equalizer
     case sleepTimer
+    case equalizer
     case interfaceLock
+    case chapters
+    case bookmarks
+    case addBookmarks
 
     var description: String {
         switch self {
@@ -28,6 +32,12 @@ enum MediaPlayerActionSheetCellIdentifier: String, CustomStringConvertible, Case
             return NSLocalizedString("BUTTON_SLEEP_TIMER", comment: "")
         case .interfaceLock:
             return NSLocalizedString("INTERFACE_LOCK_BUTTON", comment: "")
+        case .chapters:
+            return NSLocalizedString("CHAPTER_SELECTION_TITLE", comment: "")
+        case .bookmarks:
+            return NSLocalizedString("BOOKMARKS_TITLE", comment: "")
+        case .addBookmarks:
+            return NSLocalizedString("ADD_BOOKMARKS_TITLE", comment: "")
         }
     }
 }
@@ -51,36 +61,82 @@ class MediaPlayerActionSheet: ActionSheet {
     @objc weak var mediaPlayerActionSheetDelegate: MediaPlayerActionSheetDelegate?
     @objc weak var mediaPlayerActionSheetDataSource: MediaPlayerActionSheetDataSource?
     
-    var offScreenFrame: CGRect {
-        let y = collectionView.frame.origin.y + headerView.cellHeight
-        let w = collectionView.frame.size.width
-        let h = collectionView.frame.size.height
-        return CGRect(x: w, y: y, width: w, height: h)
-    }
-    
-    private var leftToRightGesture: UIPanGestureRecognizer {
+    private lazy var leftToRightGesture: UIPanGestureRecognizer = {
         let leftToRight = UIPanGestureRecognizer(target: self, action: #selector(draggedRight(panGesture:)))
         return leftToRight
-    }
+    }()
 
     // MARK: Private Methods
-    private func add(childView child: UIView) {
+    private func getTitle(of childView: UIView) -> String {
+        if childView is VideoFiltersView {
+            return MediaPlayerActionSheetCellIdentifier.filter.description
+        } else if childView is NewPlaybackSpeedView {
+            return MediaPlayerActionSheetCellIdentifier.playback.description
+        } else if childView is SleepTimerView {
+            return MediaPlayerActionSheetCellIdentifier.sleepTimer.description
+        } else if childView is EqualizerView {
+            return MediaPlayerActionSheetCellIdentifier.equalizer.description
+        } else if childView is ChapterView {
+            return MediaPlayerActionSheetCellIdentifier.chapters.description
+        } else if childView is BookmarksView {
+            return MediaPlayerActionSheetCellIdentifier.bookmarks.description
+        } else {
+            return NSLocalizedString("MORE_OPTIONS_HEADER_TITLE", comment: "")
+        }
+    }
+
+    private func changeBackground(alpha: CGFloat) {
         UIView.animate(withDuration: 0.3, animations: {
-            child.frame = self.collectionView.frame
-            self.addChildToStackView(child)
+            self.backgroundView.backgroundColor = UIColor.black.withAlphaComponent(alpha)
+        })
+    }
+
+    private func add(childView child: UIView) {
+        child.frame = self.offScreenFrame
+        self.addChildToStackView(child)
+        child.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        child.layoutIfNeeded()
+        UIView.animate(withDuration: 0.3, animations: {
+            child.frame = self.collectionWrapperView.frame
+            self.headerView.previousButton.isHidden = false
+            self.headerView.title.text = self.getTitle(of: child)
+            if let child = child as? ActionSheetAccessoryViewsDelegate {
+                self.headerView.accessoryViewsDelegate = child
+            }
+            if child is BookmarksView {
+                self.leftToRightGesture.delegate = self
+                self.updateDragDownGestureDelegate(to: self)
+            }
         }) {
             (completed) in
             child.addGestureRecognizer(self.leftToRightGesture)
             self.currentChildView = child
+            if child is VideoFiltersView {
+                self.changeBackground(alpha: 0)
+            }
+
+            self.headerView.previousButton.addTarget(self, action: #selector(self.removeCurrentChild), for: .touchUpInside)
         }
     }
 
     private func remove(childView child: UIView) {
         UIView.animate(withDuration: 0.3, animations: {
             child.frame = self.offScreenFrame
+            self.headerView.accessoryViewsDelegate = nil
+            self.headerView.updateAccessoryViews()
+            self.headerView.previousButton.isHidden = true
+            self.headerView.title.text = NSLocalizedString("MORE_OPTIONS_HEADER_TITLE", comment: "")
+            if child is BookmarksView {
+                self.leftToRightGesture.delegate = nil
+                self.updateDragDownGestureDelegate(to: nil)
+            }
         }) { (completed) in
             child.removeFromSuperview()
             child.removeGestureRecognizer(self.leftToRightGesture)
+
+            if child is VideoFiltersView {
+                self.changeBackground(alpha: 0.6)
+            }
         }
     }
 
@@ -90,25 +146,19 @@ class MediaPlayerActionSheet: ActionSheet {
         }
     }
 
+    func openOptionView(_ view: UIView) {
+        add(childView: view)
+    }
+
     func setTheme() {
-        let darkColors = PresentationTheme.darkTheme.colors
-        collectionView.backgroundColor = darkColors.background
-        headerView.backgroundColor = darkColors.background
-        headerView.title.textColor = darkColors.cellTextColor
-        for cell in collectionView.visibleCells {
-            if let cell = cell as? ActionSheetCell {
-                cell.backgroundColor = darkColors.background
-                cell.name.textColor = darkColors.cellTextColor
-                cell.icon.tintColor = .orange
-                // toggleSwitch's tintColor should not be changed
-                if cell.accessoryType == .disclosureChevron {
-                    cell.accessoryView.tintColor = darkColors.cellDetailTextColor
-                } else if cell.accessoryType == .checkmark {
-                    cell.accessoryView.tintColor = .orange
-                }
-            }
+        if #available(iOS 13.0, *) {
+            overrideUserInterfaceStyle = .dark
         }
-        collectionView.layoutIfNeeded()
+        collectionWrapperView.backgroundColor = PresentationTheme.currentExcludingWhite.colors.background
+        collectionView.backgroundColor = PresentationTheme.currentExcludingWhite.colors.background
+        headerView.backgroundColor = PresentationTheme.currentExcludingWhite.colors.background
+        headerView.title.textColor = PresentationTheme.currentExcludingWhite.colors.cellTextColor
+        headerView.title.backgroundColor = PresentationTheme.currentExcludingWhite.colors.background
     }
 
     /// Animates the removal of the `currentChildViewController` when it is dragged from its left edge to the right
@@ -130,7 +180,7 @@ class MediaPlayerActionSheet: ActionSheet {
                     removeCurrentChild()
                 } else {
                     UIView.animate(withDuration: 0.3) {
-                        current.frame = self.collectionView.frame
+                        current.frame = self.collectionWrapperView.frame
                     }
                 }
             }
@@ -151,13 +201,6 @@ class MediaPlayerActionSheet: ActionSheet {
             }
         }
     }
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        // Remove the themeDidChangeNotification set in the superclass
-        // MovieViewController Video Options should be dark at all times
-        NotificationCenter.default.removeObserver(self, name: .VLCThemeDidChangeNotification, object: nil)
-    }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -172,7 +215,15 @@ class MediaPlayerActionSheet: ActionSheet {
         modalPresentationStyle = .custom
         setAction { (item) in
             if let item = item as? UIView {
-                self.add(childView: item)
+                if let equalizerView = item as? EqualizerView {
+                    if let actionSheet = self as? MediaMoreOptionsActionSheet {
+                        equalizerView.willShow()
+                        actionSheet.moreOptionsDelegate?.mediaMoreOptionsActionSheetPresentPopupView(withChild: equalizerView)
+                        self.removeActionSheet()
+                    }
+                } else {
+                    self.add(childView: item)
+                }
             } else {
                 preconditionFailure("MediaMoreOptionsActionSheet: Action:: Item's could not be cased as UIView")
             }
@@ -182,6 +233,10 @@ class MediaPlayerActionSheet: ActionSheet {
     
     required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    func shouldDisablePanGesture(_ disable: Bool) {
+        leftToRightGesture.isEnabled = !disable
     }
 }
 
@@ -203,13 +258,23 @@ extension MediaPlayerActionSheet: ActionSheetDataSource {
             withReuseIdentifier: ActionSheetCell.identifier,
             for: indexPath) as? ActionSheetCell {
             sheetCell = cell
-            sheetCell.configure(withModel: cellModel)
+            sheetCell.configure(withModel: cellModel, isFromMediaPlayerActionSheet: true)
+
+            sheetCell.backgroundColor = PresentationTheme.currentExcludingWhite.colors.background
+            sheetCell.name.textColor = PresentationTheme.currentExcludingWhite.colors.cellTextColor
+            sheetCell.icon.tintColor = PresentationTheme.currentExcludingWhite.colors.orangeUI
+
+            if sheetCell.accessoryType == .disclosureChevron {
+                cell.accessoryView.tintColor = PresentationTheme.currentExcludingWhite.colors.cellDetailTextColor
+            } else {
+                sheetCell.accessoryView.tintColor = PresentationTheme.currentExcludingWhite.colors.orangeUI
+            }
         } else {
             assertionFailure("MediaMoreOptionsActionSheet: Could not dequeue reusable cell")
             sheetCell = ActionSheetCell(withCellModel: cellModel)
         }
 
-        sheetCell.accessoryView.tintColor = PresentationTheme.darkTheme.colors.cellDetailTextColor
+        sheetCell.accessoryView.tintColor = PresentationTheme.currentExcludingWhite.colors.cellDetailTextColor
         sheetCell.delegate = self
         return sheetCell
     }

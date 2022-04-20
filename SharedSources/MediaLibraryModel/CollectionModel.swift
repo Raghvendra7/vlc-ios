@@ -13,20 +13,29 @@ import Foundation
 class CollectionModel: MLBaseModel {
     typealias MLType = VLCMLMedia
 
-    var sortModel: SortModel
+    var sortModel = SortModel([.alpha, .duration, .insertionDate, .releaseDate, .fileSize])
 
     var mediaCollection: MediaCollectionModel
 
     var medialibrary: MediaLibraryService
 
-    var updateView: (() -> Void)?
+    var observable = Observable<MediaLibraryBaseModelObserver>()
 
     var files = [VLCMLMedia]()
 
-    var cellType: BaseCollectionViewCell.Type { return MediaCollectionViewCell.self }
+    var cellType: BaseCollectionViewCell.Type {
+        if mediaCollection is VLCMLMediaGroup {
+            return UserDefaults.standard.bool(forKey: "\(kVLCVideoLibraryGridLayout)\(String(describing: type(of: mediaCollection)) + name)") ?
+                                              MovieCollectionViewCell.self : MediaCollectionViewCell.self
+        } else {
+            return UserDefaults.standard.bool(forKey: "\(kVLCAudioLibraryGridLayout)\(String(describing: type(of: mediaCollection)) + name)") ?
+                                              MediaGridCollectionCell.self : MediaCollectionViewCell.self
+        }
+    }
 
-    // No indicator for this model so no localization needed.
-    var indicatorName: String = "Collections"
+    var name: String = "Collections"
+
+    var indicatorName: String = NSLocalizedString("SONGS", comment: "")
 
     required init(medialibrary: MediaLibraryService) {
         preconditionFailure("")
@@ -35,57 +44,95 @@ class CollectionModel: MLBaseModel {
     required init(mediaService: MediaLibraryService, mediaCollection: MediaCollectionModel) {
         self.medialibrary = mediaService
         self.mediaCollection = mediaCollection
+        self.sortModel = mediaCollection.sortModel() ?? self.sortModel
+
+        var sortingCriteria: VLCMLSortingCriteria = .default
+
+        if mediaCollection is VLCMLArtist
+            || mediaCollection is VLCMLGenre
+            || mediaCollection is VLCMLAlbum {
+            sortingCriteria = .album
+        }
+
+        self.sortModel.currentSort = sortingCriteria
         files = mediaCollection.files() ?? []
-        sortModel = mediaCollection.sortModel() ?? SortModel([.default])
-        medialibrary.addObserver(self)
+        medialibrary.observable.addObserver(self)
     }
 
     func append(_ item: VLCMLMedia) {
         files.append(item)
     }
 
-    func delete(_ items: [VLCMLObject]) {
+    func delete(_ items: [MLType]) {
         if let playlist = mediaCollection as? VLCMLPlaylist {
-            for case let media as VLCMLMedia in items {
+            for case let media in items {
                 if let index = files.firstIndex(of: media) {
                     playlist.removeMedia(fromPosition: UInt32(index))
                 }
             }
         } else {
             do {
-                for case let media as VLCMLMedia in items {
+                for case let media in items {
                     if let mainFile = media.mainFile() {
-                        try FileManager.default.removeItem(atPath: mainFile.mrl.path)
+                        mainFile.delete()
                     }
                 }
                 medialibrary.reload()
             }
-            catch let error as NSError {
-                assertionFailure("CollectionModel: Delete failed: \(error.localizedDescription)")
-            }
+            filterFilesFromDeletion(of: items)
         }
     }
-}
 
-// MARK: - Edit
-extension CollectionModel: EditableMLModel {
-    func editCellType() -> BaseCollectionViewCell.Type {
-        return MediaEditCell.self
+    func sort(by criteria: VLCMLSortingCriteria, desc: Bool) {
+        files = mediaCollection.files(with: criteria, desc: desc) ?? []
+        sortModel.currentSort = criteria
+        sortModel.desc = desc
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
     }
 }
 
 // MARK: - MediaLibraryObserver
 extension CollectionModel: MediaLibraryObserver {
-    func medialibrary(_ medialibrary: MediaLibraryService, didModifyPlaylists playlists: [VLCMLPlaylist]) {
+    func medialibrary(_ medialibrary: MediaLibraryService,
+                      didModifyPlaylistsWithIds playlistsIds: [NSNumber]) {
         if mediaCollection is VLCMLPlaylist {
             files = mediaCollection.files() ?? []
-            updateView?()
+            observable.observers.forEach() {
+                $0.value.observer?.mediaLibraryBaseModelReloadView()
+            }
+        }
+    }
+
+    func medialibrary(_ medialibrary: MediaLibraryService, didModifyTracks tracks: [VLCMLMedia]) {
+        files = mediaCollection.files() ?? []
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
         }
     }
 
     func medialibrary(_ medialibrary: MediaLibraryService, didDeleteMediaWithIds ids: [NSNumber]) {
         files = mediaCollection.files() ?? []
-        updateView?()
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
+    }
+
+    func medialibrary(_ medialibrary: MediaLibraryService,
+                      thumbnailReady media: VLCMLMedia,
+                      type: VLCMLThumbnailSizeType, success: Bool) {
+        guard success else {
+            return
+        }
+        files = mediaCollection.files() ?? []
+        observable.observers.forEach() {
+            $0.value.observer?.mediaLibraryBaseModelReloadView()
+        }
+    }
+
+    func medialibraryDidStartRescan() {
+        files.removeAll()
     }
 }
 

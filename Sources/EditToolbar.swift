@@ -9,52 +9,38 @@
  * Refer to the COPYING file of the official project for license.
  *****************************************************************************/
 
-protocol EditToolbarDelegate: class {
+protocol EditToolbarDelegate: AnyObject {
     func editToolbarDidDelete(_ editToolbar: EditToolbar)
     func editToolbarDidAddToPlaylist(_ editToolbar: EditToolbar)
+    func editToolbarDidAddToMediaGroup(_ editToolbar: EditToolbar)
+    func editToolbarDidRemoveFromMediaGroup(_ editToolbar: EditToolbar)
     func editToolbarDidRename(_ editToolbar: EditToolbar)
-    func editToolbarDidShare(_ editToolbar: EditToolbar, presentFrom button: UIButton)
+    func editToolbarDidShare(_ editToolbar: EditToolbar)
 }
 
 class EditToolbar: UIView {
     static let height: CGFloat = 60
     weak var delegate: EditToolbarDelegate?
-    private var category: MediaLibraryBaseModel
-    private var stackView = UIStackView()
-    private var shareButton: UIButton = {
-        let shareButton = UIButton(type: .system)
-        shareButton.addTarget(self, action: #selector(share), for: .touchUpInside)
-        shareButton.setImage(UIImage(named: "share"), for: .normal)
-        shareButton.tintColor = .orange
-        shareButton.widthAnchor.constraint(equalToConstant: 44).isActive = true
-        shareButton.accessibilityLabel = NSLocalizedString("SHARE_LABEL", comment: "")
-        shareButton.accessibilityHint = NSLocalizedString("SHARE_HINT", comment: "")
-        return shareButton
+
+    private var stackView: UIStackView = {
+        let stackView = UIStackView()
+
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.distribution = .equalSpacing
+
+        return stackView
     }()
-    private var renameButton: UIButton = {
-        let renameButton = UIButton(type: .system)
-        renameButton.addTarget(self, action: #selector(rename), for: .touchUpInside)
-        renameButton.setImage(UIImage(named: "rename"), for: .normal)
-        renameButton.tintColor = .orange
-        renameButton.widthAnchor.constraint(equalToConstant: 44).isActive = true
-        renameButton.accessibilityLabel = NSLocalizedString("BUTTON_RENAME", comment: "")
-        renameButton.accessibilityHint = NSLocalizedString("RENAME_HINT", comment: "")
-        return renameButton
+
+    private var rightStackView: UIStackView = {
+        let rightStackView = UIStackView()
+        rightStackView.translatesAutoresizingMaskIntoConstraints = false
+        return rightStackView
     }()
-    private var deleteButton: UIButton = {
-        let deleteButton = UIButton(type: .system)
-        deleteButton.addTarget(self, action: #selector(deleteSelection), for: .touchUpInside)
-        deleteButton.setImage(UIImage(named: "delete"), for: .normal)
-        deleteButton.tintColor = .orange
-        deleteButton.widthAnchor.constraint(equalToConstant: 44).isActive = true
-        deleteButton.accessibilityLabel = NSLocalizedString("BUTTON_DELETE", comment: "")
-        deleteButton.accessibilityHint = NSLocalizedString("DELETE_HINT", comment: "")
-        return deleteButton
-    }()
+
     private var addToPlaylistButton: UIButton = {
         let addToPlaylistButton = UIButton(type: .system)
         addToPlaylistButton.setTitle(NSLocalizedString("ADD_TO_PLAYLIST", comment: ""), for: .normal)
-        addToPlaylistButton.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .medium)
+        addToPlaylistButton.titleLabel?.font = UIFont.preferredCustomFont(forTextStyle: .headline)
         addToPlaylistButton.contentHorizontalAlignment = .left
         addToPlaylistButton.addTarget(self, action: #selector(addToPlaylist), for: .touchUpInside)
         addToPlaylistButton.tintColor = .orange
@@ -63,8 +49,22 @@ class EditToolbar: UIView {
         return addToPlaylistButton
     }()
 
+    private(set) var addToMediaGroupButton: UIButton!
+    private var removeFromMediaGroupButton: UIButton!
+    private var renameButton: UIButton!
+    private var deleteButton: UIButton!
+    private(set) var shareButton: UIButton!
+
     @objc func addToPlaylist() {
         delegate?.editToolbarDidAddToPlaylist(self)
+    }
+
+    @objc func addToMediaGroup() {
+        delegate?.editToolbarDidAddToMediaGroup(self)
+    }
+
+    @objc func removeFromMediaGroup() {
+        delegate?.editToolbarDidRemoveFromMediaGroup(self)
     }
 
     @objc func deleteSelection() {
@@ -76,45 +76,117 @@ class EditToolbar: UIView {
     }
 
     @objc func share() {
-        delegate?.editToolbarDidShare(self, presentFrom: shareButton)
+        delegate?.editToolbarDidShare(self)
+    }
+
+    func enableEditActions(_ enable: Bool) {
+        addToPlaylistButton.isEnabled = enable
+        addToMediaGroupButton.isEnabled = enable
+        removeFromMediaGroupButton.isEnabled = enable
+        renameButton.isEnabled = enable
+        deleteButton.isEnabled = enable
+        shareButton.isEnabled = enable
+    }
+
+    func updateEditToolbar(for model: MediaLibraryBaseModel) {
+        var buttonTypeList = EditButtonsFactory.buttonList(for: model)
+        // For now we remove the first button which is Add to playlist since it is not in the same group
+        if buttonTypeList.contains(.addToPlaylist) {
+            if let index = buttonTypeList.firstIndex(of: .addToPlaylist) {
+                buttonTypeList.remove(at: index)
+            }
+        }
+
+        // Hide all buttons and show depending on model
+        addToMediaGroupButton.isHidden = true
+        removeFromMediaGroupButton.isHidden = true
+        renameButton.isHidden = true
+        deleteButton.isHidden = true
+        shareButton.isHidden = true
+
+        enableEditActions(false)
+
+        for buttonType in buttonTypeList {
+            switch buttonType {
+            case .addToPlaylist:
+                addToPlaylistButton.isHidden = false
+            case .addToMediaGroup:
+                // Disable button by default, enable it depeding on selected items.
+                addToMediaGroupButton.isEnabled = false
+                addToMediaGroupButton.isHidden = false
+            case .removeFromMediaGroup:
+                removeFromMediaGroupButton.isHidden = false
+            case .rename:
+                renameButton.isHidden = false
+            case .delete:
+                deleteButton.isHidden = false
+            case .share:
+                shareButton.isHidden = false
+            //Not supported in edit mode
+            case .play,
+                 .playNextInQueue,
+                 .appendToQueue:
+                break
+            }
+        }
+    }
+
+    private func setupRightStackView() {
+        let buttons = EditButtonsFactory.generate(buttons: [.addToMediaGroup, .removeFromMediaGroup,
+                                                            .rename, .delete, .share])
+        for button in buttons {
+            switch button.identifier {
+            case .addToPlaylist:
+                rightStackView.addArrangedSubview(button.button(#selector(addToPlaylist)))
+            case .addToMediaGroup:
+                addToMediaGroupButton = button.button(#selector(addToMediaGroup))
+                rightStackView.addArrangedSubview(addToMediaGroupButton)
+            case .removeFromMediaGroup:
+                removeFromMediaGroupButton = button.button(#selector(removeFromMediaGroup))
+                rightStackView.addArrangedSubview(removeFromMediaGroupButton)
+            case .rename:
+                renameButton = button.button(#selector(rename))
+                rightStackView.addArrangedSubview(renameButton)
+            case .delete:
+                deleteButton = button.button(#selector(deleteSelection))
+                rightStackView.addArrangedSubview(deleteButton)
+            case .share:
+                shareButton = button.button(#selector(share))
+                rightStackView.addArrangedSubview(shareButton)
+            //Not supported in edit mode
+            case .play,
+                 .playNextInQueue,
+                 .appendToQueue:
+                break
+            }
+        }
     }
 
     private func setupStackView() {
-        let stackView = UIStackView(arrangedSubviews: [addToPlaylistButton])
-        let file = category.anyfiles.first
+        stackView.addArrangedSubview(addToPlaylistButton)
+        stackView.addArrangedSubview(rightStackView)
 
-        if !(file is VLCMLArtist) && !(file is VLCMLGenre) && !(file is VLCMLAlbum) {
-            stackView.addArrangedSubview(deleteButton)
-            stackView.addArrangedSubview(renameButton)
-        }
-
-        stackView.addArrangedSubview(shareButton)
-
-        stackView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stackView)
         NSLayoutConstraint.activate([
             stackView.topAnchor.constraint(equalTo: topAnchor),
             stackView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
-            stackView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -20),
+            stackView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
             stackView.bottomAnchor.constraint(equalTo: bottomAnchor)
-            ])
+        ])
     }
 
     private func setupView() {
-        layer.shadowOpacity = 0.1
-        layer.shadowOffset = CGSize(width: 0, height: -1)
         backgroundColor = PresentationTheme.current.colors.background
     }
 
-    init(category: MediaLibraryBaseModel) {
-        self.category = category
+    init() {
         super.init(frame: .zero)
         setupView()
+        setupRightStackView()
         setupStackView()
     }
 
     required init(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-
 }

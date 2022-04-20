@@ -2,17 +2,18 @@
  * VLCNetworkLoginTVViewController.swift
  * VLC for iOS
  *****************************************************************************
- * Copyright (c) 2019 VideoLAN. All rights reserved.
+ * Copyright (c) 2019, 2021 VideoLAN. All rights reserved.
  * $Id$
  *
  * Authors: Pierre Sagaspe <pierre.sagaspe # me.com>
+ *          Felix Paul Kühne <fkuehne # videolan.org>
  *
  * Refer to the COPYING file of the official project for license.
  *****************************************************************************/
 
 import UIKit
 
-@objc class VLCNetworkLoginTVViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UIGestureRecognizerDelegate {
+@objc class VLCNetworkLoginTVViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UIGestureRecognizerDelegate, UITextFieldDelegate {
     
     @IBOutlet weak var segmentedControl: UISegmentedControl!
     @IBOutlet weak var serverField: UITextField!
@@ -58,28 +59,51 @@ import UIKit
         tableView.delegate = self
     }
 
-    func configureAppreance() {
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
         segmentedControl.setTitle(NSLocalizedString("SMB_CIFS_FILE_SERVERS_SHORT", comment: ""), forSegmentAt: 0)
         segmentedControl.setTitle(NSLocalizedString("FTP_SHORT", comment: ""), forSegmentAt: 1)
         segmentedControl.setTitle(NSLocalizedString("PLEX_SHORT", comment: ""), forSegmentAt: 2)
+        segmentedControl.setTitle(NSLocalizedString("NFS_SHORT", comment: ""), forSegmentAt: 3)
+        segmentedControl.setTitle(NSLocalizedString("SFTP_SHORT", comment: ""), forSegmentAt: 4)
+    }
+
+    func configureAppreance() {
         setSegControlProtocolIdentifier(VLCNetworkServerProtocolIdentifierFTP)
 
         serverField.placeholder = NSLocalizedString("SERVER", comment: "")
+        serverField.delegate = self
         portField.placeholder = NSLocalizedString("SERVER_PORT", comment: "")
         portField.keyboardType = UIKeyboardType.numberPad
         usernameField.placeholder = NSLocalizedString("USER_LABEL", comment: "")
         passwordField.placeholder = NSLocalizedString("PASSWORD_LABEL", comment: "")
         workgroupField.placeholder = NSLocalizedString("DSM_WORKGROUP", comment: "")
         workgroupField.isHidden = true
+        if #available(tvOS 10.0, *) {
+            serverField.textContentType = UITextContentType.URL
+        }
+        if #available(tvOS 11.0, *) {
+            usernameField.textContentType = UITextContentType.username
+            passwordField.textContentType = UITextContentType.password
+        }
 
         buttonSave.setTitle(NSLocalizedString("BUTTON_SAVE", comment: ""), for: .normal)
         buttonConnect.setTitle(NSLocalizedString("BUTTON_CONNECT", comment: ""), for: .normal)
+        buttonConnect.isEnabled = false
 
         nothingFoundLabel.text = NSLocalizedString("NO_SAVING_DATA", comment: "")
     }
 
     @objc func ubiquitousKeyValueStoreDidChange(notification: NSNotification) {
-        serverList?.setArray(NSUbiquitousKeyValueStore.default.array(forKey: kVLCStoredServerList)!)
+        if !Thread.isMainThread {
+            self.performSelector(onMainThread: #selector(ubiquitousKeyValueStoreDidChange), with: notification, waitUntilDone: false)
+            return
+        }
+        guard let storedServerList = NSUbiquitousKeyValueStore.default.array(forKey: kVLCStoredServerList)
+        else {
+            return
+        }
+        serverList?.setArray(storedServerList)
         tableView.reloadData()
     }
 
@@ -130,6 +154,11 @@ import UIKit
         case 2:
             protocolIdentifier = VLCNetworkServerProtocolIdentifierPlex
             break
+        case 3:
+            protocolIdentifier = VLCNetworkServerProtocolIdentifierNFS
+            break
+        case 4:
+            protocolIdentifier = VLCNetworkServerProtocolIdentifierSFTP
         default:
             break
         }
@@ -146,6 +175,12 @@ import UIKit
             break
         case VLCNetworkServerProtocolIdentifierPlex:
             segmentedControl.selectedSegmentIndex = 2
+            break
+        case VLCNetworkServerProtocolIdentifierNFS:
+            segmentedControl.selectedSegmentIndex = 3
+            break
+        case VLCNetworkServerProtocolIdentifierSFTP:
+            segmentedControl.selectedSegmentIndex = 4
             break
         default:
             break
@@ -177,11 +212,15 @@ import UIKit
         let identifier = login.protocolIdentifier as NSString
 
         if identifier.isEqual(to: VLCNetworkServerProtocolIdentifierFTP) {
-            serverBrowser = VLCNetworkServerBrowserFTP.init(login: login)
+            serverBrowser = VLCNetworkServerBrowserVLCMedia.ftpNetworkServerBrowser(withLogin: login)
         } else if identifier.isEqual(to: VLCNetworkServerProtocolIdentifierPlex) {
             serverBrowser = VLCNetworkServerBrowserPlex.init(login: login)
         } else if identifier.isEqual(to: VLCNetworkServerProtocolIdentifierSMB) {
             serverBrowser = VLCNetworkServerBrowserVLCMedia.smbNetworkServerBrowser(withLogin: login)
+        } else if identifier.isEqual(to: VLCNetworkServerProtocolIdentifierNFS) {
+            serverBrowser = VLCNetworkServerBrowserVLCMedia.nfsNetworkServerBrowser(withLogin: login)
+        } else if identifier.isEqual(to: VLCNetworkServerProtocolIdentifierSFTP) {
+            serverBrowser = VLCNetworkServerBrowserVLCMedia.sftpNetworkServerBrowser(withLogin: login)
         }
 
         if serverBrowser != nil {
@@ -292,4 +331,9 @@ import UIKit
         }
     }
 
+    func textFieldDidEndEditing(_ textField: UITextField) {
+        if textField == self.serverField {
+            self.buttonConnect.isEnabled = !(textField.text?.isEmpty)!
+        }
+    }
 }

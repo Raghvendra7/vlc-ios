@@ -13,22 +13,18 @@
 #import "VLCRemotePlaybackViewController.h"
 #import "Reachability.h"
 #import "VLCHTTPUploaderController.h"
-#import "VLCMediaFileDiscoverer.h"
 #import "VLCRemoteBrowsingTVCell.h"
 #import "VLCMaskView.h"
 #import "CAAnimation+VLCWiggle.h"
-#import "NSString+SupportedMedia.h"
+#import "VLCMicroMediaLibraryService.h"
 #import "VLC-Swift.h"
 
 #define remotePlaybackReuseIdentifer @"remotePlaybackReuseIdentifer"
 
-@interface VLCRemotePlaybackViewController () <UICollectionViewDataSource, UICollectionViewDelegate, VLCMediaFileDiscovererDelegate>
+@interface VLCRemotePlaybackViewController () <UICollectionViewDataSource, UICollectionViewDelegate, VLCMicroMediaLibraryServiceDelegate>
 
+@property (strong) VLCMicroMediaLibraryService *microMediaLibraryService;
 @property (strong, nonatomic) Reachability *reachability;
-@property (strong, nonatomic) NSMutableArray<NSString *> *discoveredFiles;
-
-@property (strong, nonatomic) VLCMediaThumbnailerCache *thumbnailerCache;
-
 @property (nonatomic) NSIndexPath *currentlyFocusedIndexPath;
 
 @end
@@ -43,6 +39,13 @@
 - (void)viewDidLoad
 {
     [super viewDidLoad];
+
+    self.microMediaLibraryService = [VLCMicroMediaLibraryService sharedInstance];
+    self.microMediaLibraryService.delegate = self;
+
+    if (@available(tvOS 13.0, *)) {
+        self.navigationController.navigationBarHidden = YES;
+    }
 
     UICollectionViewFlowLayout *flowLayout = (UICollectionViewFlowLayout *)self.cachedMediaCollectionView.collectionViewLayout;
     const CGFloat inset = 50.;
@@ -61,16 +64,6 @@
                                name:kReachabilityChangedNotification
                              object:nil];
 
-    VLCMediaFileDiscoverer *discoverer = [VLCMediaFileDiscoverer sharedInstance];
-    discoverer.filterResultsForPlayability = NO;
-
-    self.discoveredFiles = [NSMutableArray array];
-
-    NSArray *searchPaths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
-    discoverer.directoryPath = [[searchPaths firstObject] stringByAppendingPathComponent:kVLCHTTPUploadDirectory];
-    [discoverer addObserver:self];
-    [discoverer startDiscovering];
-
     self.cachedMediaLabel.text = NSLocalizedString(@"CACHED_MEDIA", nil);
     self.cachedMediaLongLabel.text = NSLocalizedString(@"CACHED_MEDIA_LONG", nil);
 
@@ -84,12 +77,6 @@
     NSUInteger dayOfYear = [gregorian ordinalityOfUnit:NSCalendarUnitDay inUnit:NSCalendarUnitYear forDate:[NSDate date]];
     if (dayOfYear >= 354)
         self.cachedMediaConeImageView.image = [UIImage imageNamed:@"xmas-cone"];
-
-    self.thumbnailerCache = [VLCMediaThumbnailerCache alloc];
-
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(realoadMediaCollectionView:)
-                                                 name:@"thumbnailIComplete" object:nil];
 }
 
 - (void)viewDidLayoutSubviews
@@ -121,7 +108,7 @@
 {
     [super viewWillAppear:animated];
 
-    [[VLCMediaFileDiscoverer sharedInstance] updateMediaList];
+    [self.microMediaLibraryService updateMediaList];
 
     [self.reachability startNotifier];
     [self updateHTTPServerAddress];
@@ -175,41 +162,25 @@
 
 - (void)collectionView:(UICollectionView *)collectionView willDisplayCell:(VLCRemoteBrowsingTVCell *)cell forItemAtIndexPath:(NSIndexPath *)indexPath
 {
-    NSString *cellTitle;
     NSUInteger row = indexPath.row;
-
-   NSURL *thumbnailURL = nil;
-
-    @synchronized(self.discoveredFiles) {
-        if (self.discoveredFiles.count > row) {
-            cellTitle = [self.discoveredFiles[row] lastPathComponent];
-            if (cellTitle.isSupportedMediaFormat) {
-                thumbnailURL = [self.thumbnailerCache getThumbnailURL:self.discoveredFiles[row]];
-            }
-        }
-    }
 
     [cell prepareForReuse];
     [cell setIsDirectory:NO];
-    if (thumbnailURL) {
-        [cell setThumbnailURL:thumbnailURL];
-    } else if (cellTitle.isSupportedMediaFormat) {
-        [cell setThumbnailImage:[UIImage imageNamed:@"movie"]];
-    } else if (cellTitle.isSupportedAudioMediaFormat) {
-        [cell setThumbnailImage:[UIImage imageNamed:@"audio"]];
+
+    NSURL *thumbnailURL = [_microMediaLibraryService thumbnailURLForItemAtIndex:row];
+    NSString *title = [_microMediaLibraryService titleForItemAtIndex:row];
+
+    if (!thumbnailURL) {
+        [cell setThumbnailImage:[_microMediaLibraryService placeholderImageForItemWithTitle:title]];
     } else {
-        [cell setThumbnailImage:[UIImage imageNamed:@"blank"]];
+        [cell setThumbnailURL:thumbnailURL];
     }
-    [cell setTitle:cellTitle];
+    [cell setTitle:title];
 }
 
 - (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section
 {
-    NSUInteger ret;
-
-    @synchronized(self.discoveredFiles) {
-        ret = self.discoveredFiles.count;
-    }
+    NSUInteger ret = _microMediaLibraryService.numberOfDiscoveredMedia;
     self.cachedMediaConeImageView.hidden = ret > 0;
 
     return ret;
@@ -246,14 +217,7 @@
         return nil;
     }
 
-    NSString *ret = nil;
-    @synchronized(self.discoveredFiles) {
-        NSInteger index = indexPathToDelete.item;
-        if (index < self.discoveredFiles.count) {
-            ret = self.discoveredFiles[index];
-        }
-    }
-    return ret;
+    return [_microMediaLibraryService filenameOfItemAtIndex:indexPathToDelete.item];
 }
 
 - (void)setEditing:(BOOL)editing
@@ -275,15 +239,12 @@
     if (!indexPathToDelete) {
         return;
     }
-    __block NSString *fileToDelete = nil;
+
     [self.cachedMediaCollectionView performBatchUpdates:^{
-        @synchronized(self.discoveredFiles) {
-            fileToDelete = self.discoveredFiles[indexPathToDelete.item];
-            [self.discoveredFiles removeObject:fileToDelete];
-        }
+        [_microMediaLibraryService deleteFileAtIndex:indexPathToDelete.item];
         [self.cachedMediaCollectionView deleteItemsAtIndexPaths:@[indexPathToDelete]];
     } completion:^(BOOL finished) {
-        [[NSFileManager defaultManager] removeItemAtPath:fileToDelete error:nil];
+
         self.editing = NO;
     }];
 }
@@ -292,54 +253,21 @@
 
 - (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath
 {
-    NSURL *url;
-    @synchronized(self.discoveredFiles) {
-        url = [NSURL fileURLWithPath:self.discoveredFiles[indexPath.row]];
-    }
-
-    VLCMediaList *medialist = [[VLCMediaList alloc] init];
-    [medialist addMedia:[VLCMedia mediaWithURL:url]];
-
-    [[VLCPlaybackController sharedInstance] playMediaList:medialist firstIndex:0 subtitlesFilePath:nil];
+    VLCMediaList *mediaList = [_microMediaLibraryService mediaList];
+    [[VLCPlaybackService sharedInstance] playMediaList:mediaList firstIndex:indexPath.row subtitlesFilePath:nil];
     [self presentViewController:[VLCFullscreenMovieTVViewController fullscreenMovieTVViewController]
                        animated:YES
                      completion:nil];
 }
 
-#pragma mark - media file discovery
-- (void)mediaFilesFoundRequiringAdditionToStorageBackend:(NSArray<NSString *> *)foundFiles
-{
-    @synchronized(self.discoveredFiles) {
-        self.discoveredFiles = [NSMutableArray arrayWithArray:foundFiles];
-            for (int cnt = 0; cnt < [self.discoveredFiles count]; cnt++) {
-				if (self.discoveredFiles[cnt].isSupportedMediaFormat) {
-                	[self.thumbnailerCache getVideoThumbnail:self.discoveredFiles[cnt]];
-				}
-            }
-    }
-    [self.cachedMediaCollectionView reloadData];
-}
-
-- (void)mediaFileAdded:(NSString *)filePath loading:(BOOL)isLoading
-{
-    @synchronized(self.discoveredFiles) {
-        if (![self.discoveredFiles containsObject:filePath]) {
-            [self.discoveredFiles addObject:filePath];
-        }
-    }
-    [self.cachedMediaCollectionView reloadData];
-}
-
-- (void)mediaFileDeleted:(NSString *)filePath
-{
-    @synchronized(self.discoveredFiles) {
-        [self.discoveredFiles removeObject:filePath];
-        [self.thumbnailerCache removeThumbnail:filePath];
-    }
-    [self.cachedMediaCollectionView reloadData];
-}
-
 - (void)realoadMediaCollectionView:(NSNotification *)notification
+{
+    [self.cachedMediaCollectionView reloadData];
+}
+
+#pragma mark - micro media library delegate
+
+- (void)mediaListUpdatedForService:(VLCMicroMediaLibraryService *)service
 {
     [self.cachedMediaCollectionView reloadData];
 }

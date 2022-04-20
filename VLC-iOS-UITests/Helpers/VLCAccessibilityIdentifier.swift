@@ -15,9 +15,11 @@ import Foundation
     static let video = "video"
     static let audio = "audio"
     static let songs = "songs"
+    static let artists = "artists"
     @objc static let localNetwork = "localNetwork"
     static let playlist = "playlist"
     @objc static let settings = "settings"
+    static let local = "local"
     static let cloud = "cloud"
     static let stream = "stream"
     static let downloads = "downloads"
@@ -25,4 +27,5 @@ import Foundation
     @objc static let contribute = "contribute"
     @objc static let about = "about"
     @objc static let playPause = "playPause"
+    static let videoPlayerScrubBar = "videoPlayerScrubBar"
 }

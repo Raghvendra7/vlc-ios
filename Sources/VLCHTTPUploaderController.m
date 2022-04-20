@@ -2,7 +2,7 @@
  * VLCHTTPUploaderController.m
  * VLC for iOS
  *****************************************************************************
- * Copyright (c) 2013-2015 VideoLAN. All rights reserved.
+ * Copyright (c) 2013-2020 VideoLAN. All rights reserved.
  * $Id$
  *
  * Authors: Jean-Baptiste Kempf <jb # videolan.org>
@@ -22,12 +22,17 @@
 #import "Reachability.h"
 
 #import <ifaddrs.h>
+#import <net/if.h>
 #import <arpa/inet.h>
+
+#import "NSString+SupportedMedia.h"
 
 #if TARGET_OS_IOS
 #import "VLC-Swift.h"
 #import "VLCMediaFileDiscoverer.h"
 #endif
+
+NSString *VLCHTTPUploaderBackgroundTaskName = @"VLCHTTPUploaderBackgroundTaskName";
 
 @interface VLCHTTPUploaderController()
 {
@@ -35,6 +40,9 @@
     HTTPServer *_httpServer;
     UIBackgroundTaskIdentifier _backgroundTaskIdentifier;
     Reachability *_reachability;
+
+    NSTimer *_idleTimer;
+    NSMutableSet<NSString *> *_playlistUploadPaths;
 }
 @end
 
@@ -56,47 +64,48 @@
 {
     if (self = [super init]) {
         NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
-        [center addObserver:self selector:@selector(applicationDidBecomeActive:)
-            name:UIApplicationDidBecomeActiveNotification object:nil];
-        [center addObserver:self selector:@selector(applicationDidEnterBackground:)
-            name:UIApplicationDidEnterBackgroundNotification object:nil];
-        [center addObserver:self selector:@selector(netReachabilityChanged) name:kReachabilityChangedNotification object:nil];
-        
+        [center addObserver:self
+                   selector:@selector(applicationDidBecomeActive:)
+                       name:UIApplicationDidBecomeActiveNotification
+                     object:nil];
+        [center addObserver:self
+                   selector:@selector(netReachabilityChanged)
+                       name:kReachabilityChangedNotification
+                     object:nil];
+
         BOOL isHTTPServerOn = [[NSUserDefaults standardUserDefaults] boolForKey:kVLCSettingSaveHTTPUploadServerStatus];
         [self netReachabilityChanged];
         [self changeHTTPServerState:isHTTPServerOn];
-
+        _playlistUploadPaths = [NSMutableSet set];
     }
 
     return self;
 }
 
-- (void)applicationDidBecomeActive: (NSNotification *)notification
+- (void)applicationDidBecomeActive:(NSNotification *)notification
 {
     if (!_httpServer.isRunning)
         [self changeHTTPServerState:[[NSUserDefaults standardUserDefaults] boolForKey:kVLCSettingSaveHTTPUploadServerStatus]];
+}
 
-    if (_backgroundTaskIdentifier && _backgroundTaskIdentifier != UIBackgroundTaskInvalid) {
-        [[UIApplication sharedApplication] endBackgroundTask:_backgroundTaskIdentifier];
-        _backgroundTaskIdentifier = 0;
+- (void)beginBackgroundTask
+{
+    if (!_backgroundTaskIdentifier || _backgroundTaskIdentifier == UIBackgroundTaskInvalid) {
+        dispatch_block_t expirationHandler = ^{
+            [self changeHTTPServerState:NO];
+            [[UIApplication sharedApplication] endBackgroundTask:self->_backgroundTaskIdentifier];
+            self->_backgroundTaskIdentifier = UIBackgroundTaskInvalid;
+        };
+        _backgroundTaskIdentifier = [[UIApplication sharedApplication] beginBackgroundTaskWithName:VLCHTTPUploaderBackgroundTaskName
+                                                                                 expirationHandler:expirationHandler];
     }
 }
 
-- (void)applicationDidEnterBackground: (NSNotification *)notification
+- (void)endBackgroundTask
 {
-    if (_httpServer.isRunning) {
-        if (!_backgroundTaskIdentifier || _backgroundTaskIdentifier == UIBackgroundTaskInvalid) {
-            dispatch_block_t expirationHandler = ^{
-                [self changeHTTPServerState:NO];
-                [[UIApplication sharedApplication] endBackgroundTask:self->_backgroundTaskIdentifier];
-                self->_backgroundTaskIdentifier = 0;
-            };
-            if ([[UIApplication sharedApplication] respondsToSelector:@selector(beginBackgroundTaskWithName:expirationHandler:)]) {
-                _backgroundTaskIdentifier = [[UIApplication sharedApplication] beginBackgroundTaskWithName:@"VLCUploader" expirationHandler:expirationHandler];
-            } else {
-                _backgroundTaskIdentifier = [[UIApplication sharedApplication] beginBackgroundTaskWithExpirationHandler:expirationHandler];
-            }
-        }
+    if (_backgroundTaskIdentifier && _backgroundTaskIdentifier != UIBackgroundTaskInvalid) {
+        [[UIApplication sharedApplication] endBackgroundTask:_backgroundTaskIdentifier];
+        _backgroundTaskIdentifier = UIBackgroundTaskInvalid;
     }
 }
 
@@ -119,6 +128,19 @@
     }
 }
 
+- (NSString *)addressToCopy
+{
+    if (_httpServer.isRunning) {
+        if (_httpServer.listeningPort != 80) {
+            return [NSString stringWithFormat:@"http://%@:%i", [self currentIPAddress], _httpServer.listeningPort];
+        } else {
+            return [NSString stringWithFormat:@"http://%@", [self currentIPAddress]];
+        }
+    } else {
+        return NSLocalizedString(@"HTTP_UPLOAD_SERVER_OFF", nil);
+    }
+}
+
 - (BOOL)isServerRunning
 {
     return _httpServer.isRunning;
@@ -132,44 +154,40 @@
     BOOL serverWasRunning = self.isServerRunning;
     [self changeHTTPServerState:NO];
     _nameOfUsedNetworkInterface = nil;
+    NSString *preferredipv4Interface;
+    NSString *preferredipv6Interface;
     int ret = getifaddrs(&listOfInterfaces);
     if (ret == 0) {
         anInterface = listOfInterfaces;
 
         while (anInterface != NULL) {
             if (anInterface->ifa_addr->sa_family == AF_INET) {
-                APLog(@"Found interface %s, address %@", anInterface->ifa_name, @(inet_ntoa(((struct sockaddr_in *)anInterface->ifa_addr)->sin_addr)));
-
-                /* check for primary interface first */
-                if (strncmp (anInterface->ifa_name,"en0",strlen("en0")) == 0) {
-                    unsigned int flags = anInterface->ifa_flags;
-                    if( (flags & 0x1) && (flags & 0x40) && !(flags & 0x8) ) {
-                        _nameOfUsedNetworkInterface = [NSString stringWithUTF8String:anInterface->ifa_name];
-                        break;
-                    }
+#if WIFI_SHARING_DEBUG
+                APLog(@"Found an IPv4 interface %s, address %@", anInterface->ifa_name, @(inet_ntoa(((struct sockaddr_in *)anInterface->ifa_addr)->sin_addr)));
+#endif
+                if ([self interfaceIsSuitableForUse:anInterface]) {
+                    preferredipv4Interface = [NSString stringWithUTF8String:anInterface->ifa_name];
                 }
-
-                /* oh well, let's move on to the secondary interface */
-                if (strncmp (anInterface->ifa_name,"en1",strlen("en1")) == 0) {
-                    unsigned int flags = anInterface->ifa_flags;
-                    if( (flags & 0x1) && (flags & 0x40) && !(flags & 0x8) ) {
-                        _nameOfUsedNetworkInterface = [NSString stringWithUTF8String:anInterface->ifa_name];
-                        break;
-                    }
-                }
-
-                if (strncmp (anInterface->ifa_name,"bridge100",strlen("bridge100")) == 0) {
-                    unsigned int flags = anInterface->ifa_flags;
-                    if( (flags & 0x1) && (flags & 0x40) && !(flags & 0x8) ) {
-                        _nameOfUsedNetworkInterface = [NSString stringWithUTF8String:anInterface->ifa_name];
-                        break;
-                    }
+            } else if (anInterface->ifa_addr->sa_family == AF_INET6) {
+                char addr[INET6_ADDRSTRLEN];
+                struct sockaddr_in6 *in6 = (struct sockaddr_in6*)anInterface->ifa_addr;
+                inet_ntop(AF_INET6, &in6->sin6_addr, addr, sizeof(addr));
+#if WIFI_SHARING_DEBUG
+                APLog(@"Found an IPv6 interface %s, address %@", anInterface->ifa_name, @(addr));
+#endif
+                if ([self interfaceIsSuitableForUse:anInterface]) {
+                    preferredipv6Interface = [NSString stringWithUTF8String:anInterface->ifa_name];
                 }
             }
             anInterface = anInterface->ifa_next;
         }
     }
     freeifaddrs(listOfInterfaces);
+    if (preferredipv4Interface) {
+        _nameOfUsedNetworkInterface = preferredipv4Interface;
+    } else {
+        _nameOfUsedNetworkInterface = preferredipv6Interface;
+    }
     if (_nameOfUsedNetworkInterface == nil) {
         _isReachable = NO;
         [self changeHTTPServerState:NO];
@@ -181,16 +199,49 @@
     }
 }
 
+- (BOOL)necessaryFlagsSetOnInterface:(struct ifaddrs *)anInterface withName:(const char *)nameToCompare
+{
+    if (strncmp (anInterface->ifa_name, nameToCompare, strlen(nameToCompare)) == 0) {
+        unsigned int flags = anInterface->ifa_flags;
+        if( (flags & IFF_UP) && (flags & IFF_RUNNING) && !(flags & IFF_LOOPBACK) ) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+- (BOOL)interfaceIsSuitableForUse:(struct ifaddrs *)anInterface
+{
+    /* check for primary interface first */
+    if ([self necessaryFlagsSetOnInterface:anInterface withName:"en0"]) {
+        return YES;
+    }
+
+    /* oh well, let's move on to the secondary interface */
+    if ([self necessaryFlagsSetOnInterface:anInterface withName:"en1"]) {
+        return YES;
+    }
+
+    /* we can also run on the tethering interface */
+    if ([self necessaryFlagsSetOnInterface:anInterface withName:"bridge100"]) {
+        return YES;
+    }
+
+    return NO;
+}
+
 - (BOOL)changeHTTPServerState:(BOOL)state
 {
     if (!state) {
         [_httpServer stop];
+        [self endBackgroundTask];
         return true;
     }
 
     if (_nameOfUsedNetworkInterface == nil) {
         APLog(@"No interface to listen on, server not started");
         _isReachable = NO;
+        [self endBackgroundTask];
         return NO;
     }
 
@@ -226,50 +277,74 @@
         if (error.code == EACCES) {
             APLog(@"Port forbidden by OS, trying another one");
             [_httpServer setPort:8888];
-            if(![_httpServer start:&error])
+            if (![_httpServer start:&error]) {
+                [self beginBackgroundTask];
                 return true;
+            }
         }
 
         /* Address already in Use, take a random one */
         if (error.code == EADDRINUSE) {
             APLog(@"Port already in use, trying another one");
             [_httpServer setPort:0];
-            if(![_httpServer start:&error])
+            if (![_httpServer start:&error]) {
+                [self beginBackgroundTask];
                 return true;
+            }
         }
 
         if (error) {
             APLog(@"Error starting HTTP Server: %@", error.localizedDescription);
             [_httpServer stop];
         }
+        [self endBackgroundTask];
         return false;
     }
+
+    [self beginBackgroundTask];
     return true;
 }
 
 - (NSString *)currentIPAddress
 {
-    NSString *address = @"";
+    NSString *ipv4address = @"";
+    NSString *ipv6address = @"";
     struct ifaddrs *interfaces = NULL;
-    struct ifaddrs *temp_addr = NULL;
+    struct ifaddrs *interface = NULL;
     int success = getifaddrs(&interfaces);
 
     if (success != 0) {
         freeifaddrs(interfaces);
-        return address;
+        return ipv4address;
     }
 
-    temp_addr = interfaces;
-    while (temp_addr != NULL) {
-        if (temp_addr->ifa_addr->sa_family == AF_INET) {
-            if([@(temp_addr->ifa_name) isEqualToString:_nameOfUsedNetworkInterface])
-                address = @(inet_ntoa(((struct sockaddr_in *)temp_addr->ifa_addr)->sin_addr));
+    interface = interfaces;
+    while (interface != NULL) {
+        if (interface->ifa_addr->sa_family == AF_INET) {
+            if([@(interface->ifa_name) isEqualToString:_nameOfUsedNetworkInterface] && [self interfaceIsSuitableForUse:interface]) {
+                ipv4address = @(inet_ntoa(((struct sockaddr_in *)interface->ifa_addr)->sin_addr));
+            }
+        } else if (interface->ifa_addr->sa_family == AF_INET6) {
+            if([@(interface->ifa_name) isEqualToString:_nameOfUsedNetworkInterface] && [self interfaceIsSuitableForUse:interface]) {
+                char addr[INET6_ADDRSTRLEN];
+                struct sockaddr_in6 *in6 = (struct sockaddr_in6*)interface->ifa_addr;
+                inet_ntop(AF_INET6, &in6->sin6_addr, addr, sizeof(addr));
+                ipv6address = @(addr);
+            }
         }
-        temp_addr = temp_addr->ifa_next;
+        interface = interface->ifa_next;
     }
 
     freeifaddrs(interfaces);
-    return address;
+
+    /* return the IPv4 address in dual stack networks as it is more readable */
+    if (ipv4address.length > 0) {
+        /* ignore link-local addresses following RFC 3927 */
+        if (![ipv4address hasPrefix:@"169.254."]) {
+            return ipv4address;
+        }
+    }
+    return [NSString stringWithFormat:@"[%@]", ipv6address];
 }
 
 - (NSString *)hostname
@@ -292,16 +367,9 @@
     return [NSString stringWithFormat:@"%i", _httpServer.listeningPort];
 }
 
-- (void)moveFileFrom:(NSString *)filepath
-{
-    /* update media library when file upload was completed */
-    VLCActivityManager *activityManager = [VLCActivityManager defaultManager];
-    [activityManager networkActivityStopped];
-    [activityManager activateIdleTimer];
-
-    /* on tvOS, the media remains in the cache folder and will disappear from there
-     * while on iOS we have persistent storage, so move it there */
 #if TARGET_OS_IOS
+- (void)moveFileOutOfCache:(NSString *)filepath
+{
     NSString *fileName = [filepath lastPathComponent];
     NSString *libraryPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
     NSString *uploadPath = [[NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES)
@@ -350,6 +418,25 @@
     // FIXME: Replace notifications by cleaner observers
     [[NSNotificationCenter defaultCenter] postNotificationName:NSNotification.VLCNewFileAddedNotification
                                                         object:self];
+}
+#endif
+
+- (void)moveFileFrom:(NSString *)filepath
+{
+    VLCActivityManager *activityManager = [VLCActivityManager defaultManager];
+    [activityManager networkActivityStopped];
+    [activityManager activateIdleTimer];
+
+    // Check if downloaded file is a playlist in order to parse at the end of the download.
+    if ([[filepath lastPathComponent] isSupportedPlaylistFormat]) {
+        [_playlistUploadPaths addObject:filepath];
+        return;
+    }
+
+    /* on tvOS, the media remains in the cache folder and will disappear from there
+     * while on iOS we have persistent storage, so move it there */
+#if TARGET_OS_IOS
+    [self moveFileOutOfCache:filepath];
 #endif
 }
 
@@ -365,5 +452,36 @@
     if ([fileManager fileExistsAtPath:uploadDirPath])
         [fileManager removeItemAtPath:uploadDirPath error:nil];
 }
+
+#if TARGET_OS_IOS
+- (void)resetIdleTimer
+{
+    const int timeInterval = 4;
+
+    if (!_idleTimer)
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self->_idleTimer = [NSTimer scheduledTimerWithTimeInterval:timeInterval
+                                                                target:self
+                                                              selector:@selector(idleTimerDone)
+                                                              userInfo:nil
+                                                               repeats:NO];
+        });
+    else {
+        if (fabs([_idleTimer.fireDate timeIntervalSinceNow]) < timeInterval)
+            [_idleTimer setFireDate:[NSDate dateWithTimeIntervalSinceNow:timeInterval]];
+    }
+}
+
+- (void)idleTimerDone
+{
+    _idleTimer = nil;
+
+    for (NSString *path in _playlistUploadPaths) {
+        [self moveFileOutOfCache:path];
+    }
+
+    [_playlistUploadPaths removeAllObjects];
+}
+#endif
 
 @end

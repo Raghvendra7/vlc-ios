@@ -9,35 +9,37 @@
  * Refer to the COPYING file of the official project for license.
  *****************************************************************************/
 
+import CoreSpotlight
+
 protocol MediaModel: MLBaseModel where MLType == VLCMLMedia { }
 
 extension MediaModel {
     func append(_ item: VLCMLMedia) {
-        if !files.contains { $0 == item } {
+        if !files.contains(where: { $0 == item }) {
             files.append(item)
         }
     }
 
-    func delete(_ items: [VLCMLObject]) {
-        do {
-            for case let media as VLCMLMedia in items {
-                if let mainFile = media.mainFile() {
-                    try FileManager.default.removeItem(atPath: mainFile.mrl.path)
-                }
-            }
-            medialibrary.reload()
+    func delete(_ items: [VLCMLMedia]) {
+        for case let media in items {
+            media.deleteMainFile()
         }
-        catch let error as NSError {
-            assertionFailure("MediaModel: Delete failed: \(error.localizedDescription)")
-        }
+        medialibrary.reload()
+        filterFilesFromDeletion(of: items)
     }
 }
 
 // MARK: - ViewModel
 
 extension VLCMLMedia {
+    func deleteMainFile() {
+        if let mainFile = mainFile() {
+            mainFile.delete()
+        }
+    }
+
     @objc func mediaDuration() -> String {
-        return String(format: "%@", VLCTime(int: Int32(duration())))
+        return String(format: "%@", VLCTime(number: NSNumber.init(value: duration())))
     }
 
     @objc func formatSize() -> String {
@@ -46,9 +48,11 @@ extension VLCMLMedia {
     }
 
     @objc func thumbnailImage() -> UIImage? {
-        var image = UIImage(contentsOfFile: thumbnail()?.path ?? "")
-        if image == nil {
-            let isDarktheme = PresentationTheme.current == PresentationTheme.darkTheme
+        var image = VLCThumbnailsCache.thumbnail(for: thumbnail())
+        if image == nil
+            || (!UserDefaults.standard.bool(forKey: kVLCSettingShowThumbnails) && subtype() != .albumTrack)
+            || (!UserDefaults.standard.bool(forKey: kVLCSettingShowArtworks) && subtype() == .albumTrack) {
+            let isDarktheme = PresentationTheme.current.isDark
             if subtype() == .albumTrack {
                 image = isDarktheme ? UIImage(named: "song-placeholder-dark") : UIImage(named: "song-placeholder-white")
             } else {
@@ -63,6 +67,15 @@ extension VLCMLMedia {
             return title + " " + mediaDuration() + " " + formatSize()
         }
         return title + " " + albumTrackArtistName() + " " + (isNew ? NSLocalizedString("NEW", comment: "") : "")
+    }
+
+    func title() -> String {
+        if UserDefaults.standard.bool(forKey: kVLCOptimizeItemNamesForDisplay) == true
+            && ((subtype() == .albumTrack && title.isSupportedAudioMediaFormat())
+                || (subtype() != .albumTrack && title.isSupportedMediaFormat())) {
+            return (title as NSString).deletingPathExtension
+        }
+        return title
     }
 }
 
@@ -79,7 +92,7 @@ extension VLCMLMedia {
         attributeSet.deliveryType = 0
         attributeSet.local = 1
         attributeSet.playCount = NSNumber(value: playCount())
-        if isThumbnailGenerated() {
+        if thumbnailStatus() == .available {
             let image = UIImage(contentsOfFile: thumbnail()?.path ?? "")
             attributeSet.thumbnailData = image?.jpegData(compressionQuality: 0.9)
         }
@@ -92,15 +105,15 @@ extension VLCMLMedia {
                 attributeSet.audioSampleRate = NSNumber(value: track.sampleRate())
             }
         }
-        if let albumTrack = albumTrack {
-            if let genre = albumTrack.genre {
+        if subtype() == .albumTrack {
+            if let genre = genre {
                 attributeSet.genre = genre.name
             }
-            if let artist = albumTrack.artist {
+            if let artist = artist {
                 attributeSet.artist = artist.name
             }
-            attributeSet.audioTrackNumber = NSNumber(value:albumTrack.trackNumber())
-            if let album = albumTrack.album {
+            attributeSet.audioTrackNumber = NSNumber(value:trackNumber)
+            if let album = album {
                 attributeSet.artist = album.title
             }
         }
@@ -161,15 +174,25 @@ extension VLCMLMedia {
 // MARK: - Search
 extension VLCMLMedia: SearchableMLModel {
     func contains(_ searchString: String) -> Bool {
-        return title.lowercased().contains(searchString)
+        var matches = false
+
+        if subtype() == .albumTrack {
+            matches = matches || artist?.contains(searchString) ?? false
+            matches = matches || genre?.contains(searchString) ?? false
+            matches = matches || album?.contains(searchString) ?? false
+        }
+
+        matches = matches || title.lowercased().contains(searchString)
+
+        return matches
     }
 }
 
 extension VLCMLMedia {
     func albumTrackArtistName() -> String {
-        guard let albumTrack = albumTrack else {
+        guard let artist = artist, artist.identifier() != UnknownArtistID else {
             return NSLocalizedString("UNKNOWN_ARTIST", comment: "")
         }
-        return albumTrack.albumArtistName()
+        return artist.name
     }
 }

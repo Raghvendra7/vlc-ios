@@ -12,7 +12,7 @@
 
 #import "VLCBoxController.h"
 #import "NSString+SupportedMedia.h"
-#import "VLCPlaybackController.h"
+#import "VLCPlaybackService.h"
 #import "VLCMediaFileDiscoverer.h"
 #import <XKKeychain/XKKeychainGenericPasswordItem.h>
 #if TARGET_OS_IOS
@@ -108,6 +108,14 @@
 
 - (void)boxApiTokenDidRefresh
 {
+    XKKeychainGenericPasswordItem *keychainItem = [[XKKeychainGenericPasswordItem alloc] init];
+    keychainItem.service = kVLCBoxService;
+    keychainItem.account = kVLCBoxAccount;
+    keychainItem.secret.stringValue = [[BoxSDK sharedSDK].OAuth2Session refreshToken];
+    [keychainItem saveWithError:nil];
+    NSUbiquitousKeyValueStore *ubiquitousStore = [NSUbiquitousKeyValueStore defaultStore];
+    [ubiquitousStore setString:[[BoxSDK sharedSDK].OAuth2Session refreshToken] forKey:kVLCStoreBoxCredentials];
+    [ubiquitousStore synchronize];
     [[NSNotificationCenter defaultCenter] postNotificationName:VLCBoxControllerSessionUpdated object:nil];
 }
 
@@ -194,11 +202,12 @@
     NSArray *searchPaths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString *filePath = [searchPaths[0] stringByAppendingFormat:@"/%@", file.name];
 
-    [self loadFile:file intoPath:filePath];
+    [self loadFile:file intoPath:[self createPotentialPathFrom:filePath]];
 
-    if ([self.delegate respondsToSelector:@selector(operationWithProgressInformationStarted)])
-        [self.delegate operationWithProgressInformationStarted];
-
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if ([self.delegate respondsToSelector:@selector(operationWithProgressInformationStarted)])
+            [self.delegate operationWithProgressInformationStarted];
+    });
     _downloadInProgress = YES;
 }
 #endif
@@ -263,8 +272,11 @@
         }
 
         CGFloat progress = (CGFloat)bytesReceived / (CGFloat)expectedTotalBytes;
-        if ([self.delegate respondsToSelector:@selector(currentProgressInformation:)])
-            [self.delegate currentProgressInformation:progress];
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if ([self.delegate respondsToSelector:@selector(currentProgressInformation:)])
+                [self.delegate currentProgressInformation:progress];
+        });
     };
 
     [[BoxSDK sharedSDK].filesManager downloadFileWithID:file.modelID outputStream:outputStream requestBuilder:nil success:successBlock failure:failureBlock progress:progressBlock];
@@ -292,8 +304,11 @@
     [formatter setTimeZone:[NSTimeZone timeZoneForSecondsFromGMT:0]];
 
     NSString *remainingTime = [formatter stringFromDate:date];
-    if ([self.delegate respondsToSelector:@selector(updateRemainingTime:)])
-        [self.delegate updateRemainingTime:remainingTime];
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if ([self.delegate respondsToSelector:@selector(updateRemainingTime:)])
+            [self.delegate updateRemainingTime:remainingTime];
+    });
 }
 
 - (void)downloadSuccessful
@@ -307,8 +322,10 @@
     [[NSNotificationCenter defaultCenter] postNotificationName:NSNotification.VLCNewFileAddedNotification
                                                         object:self];
 #endif
-    if ([self.delegate respondsToSelector:@selector(operationWithProgressInformationStopped)])
-        [self.delegate operationWithProgressInformationStopped];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if ([self.delegate respondsToSelector:@selector(operationWithProgressInformationStopped)])
+            [self.delegate operationWithProgressInformationStopped];
+    });
     _downloadInProgress = NO;
 
     [self _triggerNextDownload];
@@ -317,8 +334,10 @@
 - (void)downloadFailedWithError:(NSError*)error
 {
     APLog(@"BoxFile download failed with error %li", (long)error.code);
-    if ([self.delegate respondsToSelector:@selector(operationWithProgressInformationStopped)])
-        [self.delegate operationWithProgressInformationStopped];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if ([self.delegate respondsToSelector:@selector(operationWithProgressInformationStopped)])
+            [self.delegate operationWithProgressInformationStopped];
+    });
     _downloadInProgress = NO;
 
     [self _triggerNextDownload];
