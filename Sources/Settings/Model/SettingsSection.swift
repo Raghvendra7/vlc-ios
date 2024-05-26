@@ -2,9 +2,14 @@
 * SettingsSection.swift
 * VLC for iOS
 *****************************************************************************
-* Copyright (c) 2020 VideoLAN. All rights reserved.
+* Copyright (c) 2020-2023 VideoLAN. All rights reserved.
 *
 * Authors: Swapnanil Dhol <swapnanildhol # gmail.com>
+*          Soomin Lee < bubu@mikan.io >
+*          Edgar Fouillet <vlc # edgar.fouillet.eu>
+*          Diogo Simao Marques <dogo@videolabs.io>
+*          Felix Paul Kühne <fkuehne # videolan.org>
+*          Eshan Singh <eeeshan789@icloud.com>
 *
 * Refer to the COPYING file of the official project for license.
 *****************************************************************************/
@@ -14,6 +19,7 @@ import LocalAuthentication
 
 enum SettingsSection: Int, CaseIterable, CustomStringConvertible {
     case main
+    case donation
     case generic
     case privacy
     case gestureControl
@@ -24,10 +30,13 @@ enum SettingsSection: Int, CaseIterable, CustomStringConvertible {
     case mediaLibrary
     case network
     case lab
+    case reset
 
     var description: String {
         switch self {
         case .main:
+            return ""
+        case .donation:
             return ""
         case .generic:
             return "SETTINGS_GENERIC_TITLE"
@@ -49,6 +58,8 @@ enum SettingsSection: Int, CaseIterable, CustomStringConvertible {
             return "SETTINGS_NETWORK"
         case .lab:
             return "SETTINGS_LAB"
+        case .reset:
+            return "SETTINGS_RESET_TITLE"
         }
     }
 }
@@ -56,7 +67,6 @@ enum SettingsSection: Int, CaseIterable, CustomStringConvertible {
 enum MainOptions: Int, CaseIterable, SectionType {
     case privacy
     case appearance
-    case blackTheme
 
     var description: String {
         switch self {
@@ -64,8 +74,6 @@ enum MainOptions: Int, CaseIterable, SectionType {
             return "SETTINGS_PRIVACY_TITLE"
         case .appearance:
             return "SETTINGS_DARKTHEME"
-        case .blackTheme:
-            return "SETTINGS_THEME_BLACK"
         }
     }
 
@@ -75,10 +83,10 @@ enum MainOptions: Int, CaseIterable, SectionType {
             return false
         case .appearance:
             return false
-        case .blackTheme:
-            return true
         }
     }
+
+    var containsInfobutton: Bool { return false }
 
     var subtitle: String? {
         switch self {
@@ -86,8 +94,6 @@ enum MainOptions: Int, CaseIterable, SectionType {
             return "SETTINGS_PRIVACY_SUBTITLE"
         case .appearance:
             return "SETTINGS_THEME_SYSTEM"
-        case .blackTheme:
-            return "SETTINGS_THEME_BLACK_SUBTITLE"
         }
     }
 
@@ -97,10 +103,26 @@ enum MainOptions: Int, CaseIterable, SectionType {
             return kVLCSettingPasscodeOnKey
         case .appearance:
             return kVLCSettingAppTheme
-        case .blackTheme:
-            return kVLCSettingAppThemeBlack
         }
     }
+}
+
+enum DonationOptions: Int, CaseIterable, SectionType {
+    case donate
+
+    var description: String {
+        return "SETTINGS_DONATE"
+    }
+
+    var containsSwitch: Bool { return false }
+
+    var containsInfobutton: Bool { return false }
+
+    var subtitle: String? {
+        return "SETTINGS_DONATE_LONG"
+    }
+
+    var preferenceKey: String? { return nil }
 }
 
 enum GenericOptions: Int, CaseIterable, SectionType {
@@ -142,11 +164,22 @@ enum GenericOptions: Int, CaseIterable, SectionType {
         case .continueVideoPlayback:
             return false
         case .automaticallyPlayNextItem:
-            return true
+            return false
         case .enableTextScrollingInMediaList:
             return true
         case .rememberPlayerState:
             return true
+        }
+    }
+
+    var containsInfobutton: Bool {
+        switch self {
+        case .continueAudioPlayback:
+            return true
+        case .continueVideoPlayback:
+            return true
+        default:
+            return false
         }
     }
 
@@ -230,6 +263,8 @@ enum PrivacyOptions: Int, CaseIterable, SectionType {
         }
     }
 
+    var containsInfobutton: Bool { return false }
+
     var subtitle: String? {
         switch self {
         case .passcodeLock:
@@ -273,11 +308,45 @@ enum PlaybackControlOptions: Int, CaseIterable, SectionType {
     case swipeUpDownForBrightness
     case swipeRightLeftToSeek
     case pinchToClose
-    case variableJumpDuration
+    case forwardBackwardEqual
+    case tapSwipeEqual
+    case forwardSkipLength
+    case backwardSkipLength
+    case forwardSkipLengthSwipe
+    case backwardSkipLengthSwipe
 
-    var containsSwitch: Bool { return true }
+    var containsInfobutton: Bool { return false }
+
+    var containsSwitch: Bool {
+        switch self {
+        case .swipeUpDownForVolume:
+            return true
+        case .twoFingerTap:
+            return true
+        case .swipeUpDownForBrightness:
+            return true
+        case .swipeRightLeftToSeek:
+            return true
+        case .pinchToClose:
+            return true
+        case .forwardBackwardEqual:
+            return true
+        case .tapSwipeEqual:
+            return true
+        case .forwardSkipLength:
+            return false
+        case .backwardSkipLength:
+            return false
+        case .forwardSkipLengthSwipe:
+            return false
+        case .backwardSkipLengthSwipe:
+            return false
+        }
+    }
 
     var description: String {
+        let forwardBackwardEqual = UserDefaults.standard.bool(forKey: kVLCSettingPlaybackForwardBackwardEqual)
+        let tapSwipeEqual = UserDefaults.standard.bool(forKey: kVLCSettingPlaybackTapSwipeEqual)
         switch self {
         case .swipeUpDownForVolume:
             return "SETTINGS_GESTURES_VOLUME"
@@ -289,8 +358,31 @@ enum PlaybackControlOptions: Int, CaseIterable, SectionType {
             return "SETTINGS_GESTURES_SEEK"
         case .pinchToClose:
             return "SETTINGS_GESTURES_CLOSE"
-        case .variableJumpDuration:
-            return "SETTINGS_GESTURE_JUMP_DURATION"
+        case .forwardBackwardEqual:
+            return "SETTINGS_GESTURES_FORWARD_BACKWARD_EQUAL"
+        case .tapSwipeEqual:
+            return "SETTINGS_GESTURES_TAP_SWIPE_EQUAL"
+        case .forwardSkipLength:
+            if forwardBackwardEqual && tapSwipeEqual {
+                return "SETTINGS_PLAYBACK_SKIP_GENERIC"
+            } else if forwardBackwardEqual && !tapSwipeEqual {
+                return "SETTINGS_PLAYBACK_SKIP_TAP"
+            } else if !forwardBackwardEqual && !tapSwipeEqual {
+                return "SETTINGS_PLAYBACK_SKIP_FORWARD_TAP"
+            }
+            return  "SETTINGS_PLAYBACK_SKIP_FORWARD"
+        case .backwardSkipLength:
+            if tapSwipeEqual {
+                return "SETTINGS_PLAYBACK_SKIP_BACKWARD"
+            }
+            return "SETTINGS_PLAYBACK_SKIP_BACKWARD_TAP"
+        case .forwardSkipLengthSwipe:
+            if forwardBackwardEqual {
+                return "SETTINGS_PLAYBACK_SKIP_SWIPE"
+            }
+            return "SETTINGS_PLAYBACK_SKIP_FORWARD_SWIPE"
+        case .backwardSkipLengthSwipe:
+            return "SETTINGS_PLAYBACK_SKIP_BACKWARD_SWIPE"
         }
     }
 
@@ -308,8 +400,18 @@ enum PlaybackControlOptions: Int, CaseIterable, SectionType {
             return kVLCSettingSeekGesture
         case .pinchToClose:
             return kVLCSettingCloseGesture
-        case .variableJumpDuration:
-            return kVLCSettingVariableJumpDuration
+        case .forwardBackwardEqual:
+            return kVLCSettingPlaybackForwardBackwardEqual
+        case .tapSwipeEqual:
+            return kVLCSettingPlaybackTapSwipeEqual
+        case .forwardSkipLength:
+            return kVLCSettingPlaybackForwardSkipLength
+        case .backwardSkipLength:
+            return kVLCSettingPlaybackBackwardSkipLength
+        case .forwardSkipLengthSwipe:
+            return kVLCSettingPlaybackForwardSkipLengthSwipe
+        case .backwardSkipLengthSwipe:
+            return kVLCSettingPlaybackBackwardSkipLengthSwipe
         }
     }
 }
@@ -318,6 +420,7 @@ enum VideoOptions: Int, CaseIterable, SectionType {
     case deBlockingFilter
     case deInterlace
     case hardwareDecoding
+    case rememberPlayerBrightness
 
     var description: String {
         switch self {
@@ -327,10 +430,36 @@ enum VideoOptions: Int, CaseIterable, SectionType {
             return "SETTINGS_DEINTERLACE"
         case .hardwareDecoding:
             return "SETTINGS_HWDECODING"
+        case .rememberPlayerBrightness:
+            return "SETTINGS_REMEMBER_PLAYER_BRIGHTNESS"
         }
     }
 
-    var containsSwitch: Bool { return false }
+    var containsSwitch: Bool {
+        switch self {
+        case .deBlockingFilter:
+            return false
+        case .deInterlace:
+            return false
+        case .hardwareDecoding:
+            return false
+        case .rememberPlayerBrightness:
+            return true
+        }
+    }
+
+    var containsInfobutton: Bool {
+        switch self {
+        case .deBlockingFilter:
+            return true
+        case .deInterlace:
+            return true
+        case .hardwareDecoding:
+            return true
+        case .rememberPlayerBrightness:
+            return false
+        }
+    }
 
     var subtitle: String? {
         switch self {
@@ -340,6 +469,8 @@ enum VideoOptions: Int, CaseIterable, SectionType {
             return "SETTINGS_DEINTERLACE_OFF"
         case .hardwareDecoding:
             return "SETTINGS_HWDECODING_ON"
+        case .rememberPlayerBrightness:
+            return nil
         }
     }
 
@@ -351,11 +482,14 @@ enum VideoOptions: Int, CaseIterable, SectionType {
             return kVLCSettingDeinterlace
         case .hardwareDecoding:
             return kVLCSettingHardwareDecoding
+        case .rememberPlayerBrightness:
+            return kVLCPlayerShouldRememberBrightness
         }
     }
 }
 
 enum SubtitlesOptions: Int, CaseIterable, SectionType {
+    case disableSubtitles
     case font
     case relativeFontSize
     case useBoldFont
@@ -364,6 +498,8 @@ enum SubtitlesOptions: Int, CaseIterable, SectionType {
 
     var description: String {
         switch self {
+        case .disableSubtitles:
+            return "SETTINGS_SUBTITLES_DISABLE"
         case .font:
             return "SETTINGS_SUBTITLES_FONT"
         case .relativeFontSize:
@@ -379,6 +515,8 @@ enum SubtitlesOptions: Int, CaseIterable, SectionType {
 
     var containsSwitch: Bool {
         switch self {
+        case .disableSubtitles:
+            return true
         case .font:
             return false
         case .relativeFontSize:
@@ -394,6 +532,8 @@ enum SubtitlesOptions: Int, CaseIterable, SectionType {
 
     var subtitle: String? {
         switch self {
+        case .disableSubtitles:
+            return "SETTINGS_SUBTITLES_DISABLE_LONG"
         case .font:
             return "Arial"
         case .relativeFontSize:
@@ -409,6 +549,8 @@ enum SubtitlesOptions: Int, CaseIterable, SectionType {
 
     var preferenceKey: String? {
         switch self {
+        case .disableSubtitles:
+            return kVLCSettingDisableSubtitles
         case .font:
             return kVLCSettingSubtitlesFont
         case .relativeFontSize:
@@ -421,6 +563,8 @@ enum SubtitlesOptions: Int, CaseIterable, SectionType {
             return kVLCSettingTextEncoding
         }
     }
+
+    var containsInfobutton: Bool { return true }
 }
 
 enum CastingOptions: Int, CaseIterable, SectionType {
@@ -462,14 +606,19 @@ enum CastingOptions: Int, CaseIterable, SectionType {
             return "SETTINGS_MEDIUM"
         }
     }
+
+    var containsInfobutton: Bool { return false }
 }
 
 enum AudioOptions: Int, CaseIterable, SectionType {
+    case preampLevel
     case timeStretchingAudio
     case audioPlaybackInBackground
 
     var description: String {
         switch self {
+        case .preampLevel:
+            return "SETTINGS_AUDIO_PREAMP_LEVEL"
         case .timeStretchingAudio:
             return "SETTINGS_TIME_STRETCH_AUDIO"
         case .audioPlaybackInBackground:
@@ -477,24 +626,37 @@ enum AudioOptions: Int, CaseIterable, SectionType {
         }
     }
 
-    var containsSwitch: Bool { return true }
+    var containsSwitch: Bool {
+        switch self {
+        case .preampLevel:
+            return false
+        default:
+            return true
+        }
+    }
     var subtitle: String? {
         switch self {
+        case .preampLevel:
+            return "6 dB"
         case .timeStretchingAudio:
             return "SETTINGS_TIME_STRETCH_AUDIO_LONG"
-        case .audioPlaybackInBackground:
+        default:
             return nil
         }
     }
 
     var preferenceKey: String? {
         switch self {
+        case .preampLevel:
+            return kVLCSettingDefaultPreampLevel
         case .timeStretchingAudio:
             return kVLCSettingStretchAudio
         case .audioPlaybackInBackground:
             return kVLCSettingContinueAudioInBackgroundKey
         }
     }
+
+    var containsInfobutton: Bool { return false }
 }
 
 enum MediaLibraryOptions: Int, CaseIterable, SectionType {
@@ -549,6 +711,8 @@ enum MediaLibraryOptions: Int, CaseIterable, SectionType {
             return kVLCSettingBackupMediaLibrary
         }
     }
+
+    var containsInfobutton: Bool { return false }
 }
 
 enum NetworkOptions: Int, CaseIterable, SectionType {
@@ -608,6 +772,19 @@ enum NetworkOptions: Int, CaseIterable, SectionType {
             return kVLCSettingNetworkRTSPTCP
         }
     }
+
+    var containsInfobutton: Bool {
+        switch self {
+        case .networkCachingLevel:
+            return true
+        case .ipv6SupportForWiFiSharing:
+            return false
+        case .forceSMBv1:
+            return false
+        case .rtspctp:
+            return false
+        }
+    }
 }
 
 enum Lab: Int, CaseIterable, SectionType {
@@ -642,4 +819,20 @@ enum Lab: Int, CaseIterable, SectionType {
             return nil
         }
     }
+
+    var containsInfobutton: Bool { return false }
+}
+
+enum Reset: Int, CaseIterable, SectionType {
+    case resetOptions
+
+    var containsSwitch: Bool { return false }
+
+    var subtitle: String? { return nil }
+
+    var preferenceKey: String? { return kVLCResetSettings }
+
+    var containsInfobutton: Bool { return false }
+
+    var description: String { return "SETTINGS_RESET" }
 }

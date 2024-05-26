@@ -15,10 +15,7 @@ protocol SectionType: CustomStringConvertible {
     var containsSwitch: Bool { get }
     var subtitle: String? { get }
     var preferenceKey: String? { get }
-}
-
-protocol BlackThemeActivateDelegate: AnyObject {
-    func blackThemeSwitchOn(state: Bool)
+    var containsInfobutton: Bool { get }
 }
 
 protocol PasscodeActivateDelegate: AnyObject {
@@ -43,11 +40,19 @@ class SettingsCell: UITableViewCell {
     private let notificationCenter = NotificationCenter.default
     var settingsBundle = Bundle()
     var showsActivityIndicator = false
-    weak var blackThemeSwitchDelegate: BlackThemeActivateDelegate?
     weak var passcodeSwitchDelegate: PasscodeActivateDelegate?
+    weak var skipDurationDelegate: UITableViewController?
     weak var medialibraryHidingSwitchDelegate: MedialibraryHidingActivateDelegate?
     weak var mediaLibraryBackupSwitchDelegate: MediaLibraryBackupActivateDelegate?
     weak var medialibraryDisableGroupingSwitchDelegate: MediaLibraryDisableGroupingDelegate?
+
+    private lazy var layoutGuide: UILayoutGuide = {
+        var layoutGuide = layoutMarginsGuide
+        if #available(iOS 11.0, *) {
+            layoutGuide = safeAreaLayoutGuide
+        }
+        return layoutGuide
+    }()
 
     lazy var switchControl: UISwitch = {
         let switchControl = UISwitch()
@@ -57,6 +62,14 @@ class SettingsCell: UITableViewCell {
                                 action: #selector(handleSwitchAction),
                                 for: .valueChanged)
         return switchControl
+    }()
+
+    lazy var infoButton: UIButton = {
+        var infoButton = UIButton()
+        let buttonType: UIButton.ButtonType = PresentationTheme.current.isDark ? .infoDark : .infoLight
+        infoButton = UIButton(type: buttonType)
+        infoButton.addTarget(self, action: #selector(infoTapped), for: .touchDown)
+        return infoButton
     }()
 
     let activityIndicator: UIActivityIndicatorView = {
@@ -108,7 +121,8 @@ class SettingsCell: UITableViewCell {
                 subtitleLabel.text = sectionType.subtitle
             }
             switchControl.isHidden = !sectionType.containsSwitch
-            if switchControl.isHidden {
+            infoButton.isHidden = !sectionType.containsInfobutton
+            if switchControl.isHidden && infoButton.isHidden {
                 accessoryView = .none
                 accessoryType = .disclosureIndicator
                 selectionStyle = .default
@@ -122,9 +136,22 @@ class SettingsCell: UITableViewCell {
                     accessoryView = .none
                     selectionStyle = .none
                 } else {
-                    activityIndicator.isHidden = true
-                    accessoryView = switchControl
-                    selectionStyle = .none
+                    if switchControl.isHidden == false {
+                        activityIndicator.isHidden = true
+                        accessoryView = switchControl
+                        selectionStyle = .none
+                    } else {
+                        addSubview(infoButton)
+                        infoButton.translatesAutoresizingMaskIntoConstraints = false
+                        NSLayoutConstraint.activate([
+                            infoButton.centerYAnchor.constraint(equalTo: stackView.centerYAnchor),
+                            infoButton.trailingAnchor.constraint(equalTo: layoutGuide.trailingAnchor, constant: -40)
+                        ])
+
+                        accessoryView = .none
+                        accessoryType = .disclosureIndicator
+                        selectionStyle = .default
+                    }
                 }
             }
             updateSwitch()
@@ -157,21 +184,16 @@ class SettingsCell: UITableViewCell {
     }
 
     private func setupView() {
-
-        var guide: LayoutAnchorContainer = self
-        if #available(iOS 11.0, *) {
-            guide = safeAreaLayoutGuide
-        }
         addSubview(stackView)
         addSubview(activityIndicator)
         stackView.addArrangedSubview(mainLabel)
         stackView.addArrangedSubview(subtitleLabel)
         NSLayoutConstraint.activate([
-            stackView.leadingAnchor.constraint(equalTo: guide.leadingAnchor, constant: 20),
-            stackView.topAnchor.constraint(equalTo: guide.topAnchor, constant: 10),
-            stackView.bottomAnchor.constraint(equalTo: guide.bottomAnchor, constant: -10),
-            stackView.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -70),
-            activityIndicator.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -30),
+            stackView.leadingAnchor.constraint(equalTo: layoutGuide.leadingAnchor, constant: 20),
+            stackView.topAnchor.constraint(equalTo: layoutGuide.topAnchor, constant: 10),
+            stackView.bottomAnchor.constraint(equalTo: layoutGuide.bottomAnchor, constant: -10),
+            stackView.trailingAnchor.constraint(equalTo: layoutGuide.trailingAnchor, constant: -70),
+            activityIndicator.trailingAnchor.constraint(equalTo: layoutGuide.trailingAnchor, constant: -30),
             activityIndicator.centerYAnchor.constraint(equalTo: stackView.centerYAnchor)
         ])
         activityIndicator.isHidden = true
@@ -191,9 +213,8 @@ class SettingsCell: UITableViewCell {
     @objc func handleSwitchAction(sender: UISwitch) {
         guard let key = sectionType?.preferenceKey else { return }
         userDefaults.set(sender.isOn ? true : false, forKey: key)
-        if sectionType?.preferenceKey == kVLCSettingAppThemeBlack {
-            blackThemeSwitchDelegate?.blackThemeSwitchOn(state: sender.isOn)
-        } else if sectionType?.preferenceKey == kVLCSettingPasscodeOnKey {
+
+        if sectionType?.preferenceKey == kVLCSettingPasscodeOnKey {
             passcodeSwitchDelegate?.passcodeLockSwitchOn(state: sender.isOn)
         } else if sectionType?.preferenceKey == kVLCSettingHideLibraryInFilesApp {
             medialibraryHidingSwitchDelegate?.medialibraryHidingLockSwitchOn(state: sender.isOn)
@@ -201,11 +222,14 @@ class SettingsCell: UITableViewCell {
             mediaLibraryBackupSwitchDelegate?.mediaLibraryBackupActivateSwitchOn(state: sender.isOn)
         } else if sectionType?.preferenceKey == kVLCSettingsDisableGrouping {
             medialibraryDisableGroupingSwitchDelegate?.medialibraryDisableGroupingSwitchOn(state: sender.isOn)
+        } else if sectionType?.preferenceKey == kVLCSettingPlaybackTapSwipeEqual || sectionType?.preferenceKey == kVLCSettingPlaybackForwardBackwardEqual {
+            skipDurationDelegate?.tableView.reloadData()
         }
     }
 
     @objc fileprivate func themeDidChange() {
         let colors = PresentationTheme.current.colors
+        backgroundColor = colors.background
         selectedBackgroundView?.backgroundColor = colors.mediaCategorySeparatorColor
         mainLabel.textColor = colors.cellTextColor
         subtitleLabel.textColor = colors.cellDetailTextColor
@@ -218,6 +242,28 @@ class SettingsCell: UITableViewCell {
             switchControl.backgroundColor = backgroundColor
             return
         }
+    }
+
+    @objc func infoTapped(sender: UIButton) {
+        guard let settingSpecifier = getSettingsSpecifier(for: (sectionType?.preferenceKey)!) else {
+            return
+        }
+
+        let title = settingsBundle.localizedString(forKey: settingSpecifier.title, value: settingSpecifier.title, table: "Root")
+        let alert = UIAlertController(title: title,
+                                      message: settingsBundle.localizedString(forKey: settingSpecifier.infobuttonvalue,
+                                                                              value: settingSpecifier.infobuttonvalue,
+                                                                              table: "Root"),
+                                      preferredStyle: .actionSheet)
+        let donetitle = NSLocalizedString("BUTTON_DONE", comment: "")
+        alert.addAction(UIAlertAction(title: donetitle, style: .cancel, handler: nil))
+
+        // Set up the popoverPresentationController to avoid crash issues on iPad.
+        alert.popoverPresentationController?.sourceView = self
+        alert.popoverPresentationController?.permittedArrowDirections = .any
+        alert.popoverPresentationController?.sourceRect = self.bounds
+
+        UIApplication.shared.keyWindow?.rootViewController?.present(alert, animated: true, completion: nil)
     }
 
     @objc private func updateValues() {
